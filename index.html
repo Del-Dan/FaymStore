@@ -163,12 +163,6 @@
         const App = {
             async init() {
                 try {
-                    if (API_URL === "https://script.google.com/macros/s/AKfycbzxG09tYFfcV7ben74vi6TjQXnqZ6DB3hLnW7PVMRoW24BaQpnqvyH6GZ48A8GO38kc/exec") {
-                        console.warn("API URL NOT SET");
-                        this.renderError("Please configure the API URL in index.html to connect to your store.");
-                        return;
-                    }
-
                     const response = await fetch(`${API_URL}?action=getStoreData`);
                     const data = await response.json();
 
