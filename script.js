@@ -63,7 +63,53 @@ function checkSession() {
         document.getElementById('authStatusDot').classList.remove('hidden');
     }
 }
-function handleAuthClick() { AppState.user ? (confirm(`Log out ${AppState.user.fullName}?`) && logoutUser()) : openAuth(); }
+function handleAuthClick() { AppState.user ? openProfile() : openAuth(); }
+
+// Profile Modal Logic
+function openProfile() {
+    if (!AppState.user) return;
+    document.getElementById('profName').value = AppState.user.fullName;
+    document.getElementById('profEmail').value = AppState.user.email;
+    document.getElementById('profPhone').value = AppState.user.phone || "";
+    document.getElementById('profileModal').classList.remove('hidden');
+    document.getElementById('profileModal').classList.add('flex');
+}
+function closeProfile() {
+    document.getElementById('profileModal').classList.add('hidden');
+    document.getElementById('profileModal').classList.remove('flex');
+}
+
+async function handleUpdateProfile(e) {
+    e.preventDefault();
+    const btn = e.target.querySelector('button[type="submit"]');
+    const txt = btn.innerText;
+    btn.innerText = "Saving..."; btn.disabled = true;
+
+    try {
+        const res = await fetch(API_URL, {
+            method: 'POST',
+            body: JSON.stringify({
+                action: 'updateUser',
+                payload: {
+                    userId: AppState.user.userId,
+                    fullName: document.getElementById('profName').value,
+                    phone: document.getElementById('profPhone').value
+                }
+            })
+        }).then(r => r.json());
+
+        if (res.success) {
+            AppState.user = res.user;
+            localStorage.setItem('faym_user', JSON.stringify(res.user));
+            alert("Profile Updated Successfully!");
+            closeProfile();
+        } else {
+            alert(res.message || "Update failed.");
+        }
+    } catch (e) { alert("Connection Error"); }
+    btn.innerText = txt; btn.disabled = false;
+}
+
 function openAuth() { document.getElementById('authModal').classList.remove('hidden'); document.getElementById('authModal').classList.add('flex'); }
 function closeAuth() { document.getElementById('authModal').classList.add('hidden'); document.getElementById('authModal').classList.remove('flex'); }
 function switchAuth(mode) {
@@ -274,13 +320,16 @@ function runSearchOrFilter() {
     // Update Grid Title
     const titleEl = document.querySelector('main h2');
     const subTitleEl = document.querySelector('main span.text-brand-accent');
+    const resetBtn = document.getElementById('gridResetBtn');
 
     if (q || cat !== 'all' || price !== 'all' || stockPos) {
         if (subTitleEl) subTitleEl.innerText = "Filtered Results";
         if (titleEl) titleEl.innerHTML = q ? `Search for "<span class='italic'>${q}</span>"` : "Filtered Selection";
+        if (resetBtn) resetBtn.classList.remove('hidden');
     } else {
         if (subTitleEl) subTitleEl.innerText = "Collection";
         if (titleEl) titleEl.innerText = "All Products";
+        if (resetBtn) resetBtn.classList.add('hidden');
     }
 
     renderProductGrid(results);

@@ -129,9 +129,14 @@
 
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
         <div class="flex justify-between items-end mb-12">
-            <div><span
-                    class="text-xs font-bold tracking-widest text-brand-accent uppercase mb-2 block">Collection</span>
-                <h2 class="text-3xl md:text-4xl font-serif">All Products</h2>
+            <div>
+                <span class="text-xs font-bold tracking-widest text-brand-accent uppercase mb-2 block">Collection</span>
+                <div class="flex items-center gap-4">
+                    <h2 class="text-3xl md:text-4xl font-serif">All Products</h2>
+                    <button id="gridResetBtn" onclick="resetFilters()"
+                        class="hidden px-4 py-1 rounded-full border border-red-200 text-red-500 text-xs font-bold uppercase hover:bg-red-50 transition">Clear
+                        Filter</button>
+                </div>
             </div>
         </div>
         <div id="productGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-y-12 gap-x-8">
@@ -242,6 +247,39 @@
                     <p class="mt-4 text-center text-sm text-gray-500">Have account? <button
                             onclick="switchAuth('login')" class="text-black underline font-bold">Log In</button></p>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PROFILE MODAL -->
+    <div id="profileModal" class="fixed inset-0 z-[90] hidden items-center justify-center p-4">
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closeProfile()"></div>
+        <div class="bg-white w-full max-w-md rounded-2xl p-8 z-10 relative shadow-2xl">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-serif">My Profile</h2>
+                <button onclick="closeProfile()" class="text-2xl hover:text-gray-500">&times;</button>
+            </div>
+            <form onsubmit="handleUpdateProfile(event)" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-1">Full Name</label>
+                    <input type="text" id="profName" required class="w-full p-3 border rounded bg-gray-50">
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-1">Email</label>
+                    <input type="email" id="profEmail" disabled
+                        class="w-full p-3 border rounded bg-gray-100 text-gray-500 cursor-not-allowed">
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-1">Phone</label>
+                    <input type="tel" id="profPhone" required class="w-full p-3 border rounded bg-gray-50">
+                </div>
+                <button type="submit"
+                    class="w-full bg-black text-white py-3 rounded font-bold hover:bg-gray-800 transition">Save
+                    Changes</button>
+            </form>
+            <div class="mt-6 pt-6 border-t">
+                <button onclick="logoutUser()"
+                    class="w-full py-3 text-red-600 font-bold hover:bg-red-50 rounded transition">Log Out</button>
             </div>
         </div>
     </div>
