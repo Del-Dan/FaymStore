@@ -240,7 +240,8 @@
         const stockPos = document.getElementById('filterStock').checked;
 
         const results = AppState.products.filter(p => {
-            const matchSearch = !q || p.product_name.toLowerCase().includes(q) || p.color_name.toLowerCase().includes(q);
+            // Include safer checks
+            const matchSearch = !q || p.product_name.toLowerCase().includes(q) || p.color_name.toLowerCase().includes(q) || (p.category && p.category.toLowerCase().includes(q));
             const matchCat = cat === 'all' || p.category === cat;
 
             const pVal = p.discount_active ? p.discount_price : p.base_price;
@@ -256,19 +257,25 @@
             return matchSearch && matchCat && matchPrice && matchStock;
         });
 
-        const resGrid = document.getElementById('searchResults');
-        resGrid.innerHTML = '';
-        groupProducts(results).forEach(p => {
-            const div = document.createElement('div');
-            div.className = "cursor-pointer group";
-            div.onclick = () => { toggleSearch(); openProductModal(p); };
-            div.innerHTML = `
-                <img src="${formatImage(p.main_image_url)}" class="w-full aspect-[3/4] object-cover rounded bg-gray-100 mb-2">
-                <h4 class="font-bold text-sm line-clamp-1">${p.product_name}</h4>
-                <span class="text-xs text-gray-500">${p.category} | ${p.color_name}</span>
-            `;
-            resGrid.appendChild(div);
-        });
+        // Close Overlay to show results on main grid
+        if (!document.getElementById('searchOverlay').classList.contains('hidden')) {
+            toggleSearch();
+        }
+
+        // Update Grid Title
+        const titleEl = document.querySelector('main h2');
+        const subTitleEl = document.querySelector('main span.text-brand-accent');
+
+        if (q || cat !== 'all' || price !== 'all' || stockPos) {
+            if (subTitleEl) subTitleEl.innerText = "Filtered Results";
+            if (titleEl) titleEl.innerHTML = q ? `Search for "<span class='italic'>${q}</span>"` : "Filtered Selection";
+        } else {
+            if (subTitleEl) subTitleEl.innerText = "Collection";
+            if (titleEl) titleEl.innerText = "All Products";
+        }
+
+        renderProductGrid(results);
+        scrollToGrid();
     }
 
     function resetFilters() {
