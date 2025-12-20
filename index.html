@@ -173,8 +173,20 @@
             <button onclick="closeModal()"
                 class="absolute top-4 right-4 z-20 bg-white/50 p-2 rounded-full hover:bg-white transition"><i
                     class="bi bi-x-lg"></i></button>
-            <div class="w-full md:w-1/2 bg-gray-100 relative h-[40vh] md:h-auto"><img id="modalImg" src=""
-                    class="w-full h-full object-cover"></div>
+            <div class="w-full md:w-1/2 bg-gray-100 relative h-[40vh] md:h-auto group">
+                <img id="modalImg" src="" class="w-full h-full object-cover">
+                <!-- Gallery Nav Overlay -->
+                <button onclick="changeGalleryImage(-1)"
+                    class="absolute left-2 top-1/2 -translate-y-1/2 bg-white/80 p-2 rounded-full hover:bg-white transition hidden"
+                    id="galleryPrevBtn"><i class="bi bi-chevron-left"></i></button>
+                <button onclick="changeGalleryImage(1)"
+                    class="absolute right-2 top-1/2 -translate-y-1/2 bg-white/80 p-2 rounded-full hover:bg-white transition hidden"
+                    id="galleryNextBtn"><i class="bi bi-chevron-right"></i></button>
+                <!-- Thumbnails Overlay (Bottom) -->
+                <div id="galleryThumbnails"
+                    class="absolute bottom-4 left-0 right-0 flex justify-center gap-2 px-4 overflow-x-auto scrollbar-hide py-2">
+                </div>
+            </div>
             <div class="w-full md:w-1/2 p-8 md:p-12 overflow-y-auto bg-white">
                 <div class="flex justify-between items-start">
                     <div><span id="modalCategory"

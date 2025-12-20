@@ -415,6 +415,77 @@ function resetFilters() {
 
 // --- MODAL ---
 let currentGroup = [], currentVar = null, selSize = null;
+let currentGallery = [], galleryIdx = 0;
+
+async function initGallery(varData) {
+    const mainImg = formatImage(varData.main_image_url);
+    currentGallery = [mainImg];
+    galleryIdx = 0;
+
+    // Clear & Show Loading
+    renderGalleryUI();
+
+    if (varData.gallery_images) {
+        const raw = varData.gallery_images;
+        // Check if Folder URL or Comma List
+        if (raw.includes('drive.google.com') && (raw.includes('/folders/') || raw.includes('id='))) {
+            // Fetch
+            try {
+                const res = await fetch(`${API_URL}`, {
+                    method: 'POST',
+                    body: JSON.stringify({ action: 'getGalleryImages', payload: { url: raw } })
+                }).then(r => r.json());
+
+                if (res.success && res.images.length > 0) {
+                    // Add fetched images to gallery, filtering duplicates
+                    res.images.forEach(img => {
+                        if (formatImage(img) !== mainImg) currentGallery.push(formatImage(img));
+                    });
+                }
+            } catch (e) { console.warn("Gallery Fetch Fail", e); }
+        } else {
+            // Comma List
+            const list = raw.split(',').map(s => formatImage(s.trim())).filter(s => s && s !== mainImg);
+            currentGallery.push(...list);
+        }
+    }
+    renderGalleryUI();
+}
+
+function renderGalleryUI() {
+    // 1. Update Main Image
+    document.getElementById('modalImg').src = currentGallery[galleryIdx];
+
+    // 2. Nav Buttons
+    const prevBtn = document.getElementById('galleryPrevBtn');
+    const nextBtn = document.getElementById('galleryNextBtn');
+    if (currentGallery.length > 1) {
+        prevBtn.classList.remove('hidden');
+        nextBtn.classList.remove('hidden');
+    } else {
+        prevBtn.classList.add('hidden');
+        nextBtn.classList.add('hidden');
+    }
+
+    // 3. Thumbnails
+    const tDiv = document.getElementById('galleryThumbnails');
+    tDiv.innerHTML = '';
+    if (currentGallery.length > 1) {
+        currentGallery.forEach((img, i) => {
+            const btn = document.createElement('button');
+            btn.className = `w-12 h-16 flex-shrink-0 border-2 rounded overflow-hidden transition ${i === galleryIdx ? 'border-brand-accent scale-105' : 'border-transparent opacity-60 hover:opacity-100'}`;
+            btn.innerHTML = `<img src="${img}" class="w-full h-full object-cover">`;
+            btn.onclick = (e) => { e.stopPropagation(); galleryIdx = i; renderGalleryUI(); };
+            tDiv.appendChild(btn);
+        });
+    }
+}
+
+function changeGalleryImage(dir) {
+    galleryIdx = (galleryIdx + dir + currentGallery.length) % currentGallery.length;
+    renderGalleryUI();
+}
+
 
 function openProductModal(p) {
     currentGroup = AppState.products.filter(x => x.parent_code === p.parent_code);
@@ -448,6 +519,9 @@ function selectVariant(sub) {
         oldPriceEl.classList.add('hidden');
     }
     document.getElementById('modalDesc').innerText = currentVar.description || '';
+
+    // Init Gallery
+    initGallery(currentVar);
 
     // Colors
     const cDiv = document.getElementById('modalColors');
