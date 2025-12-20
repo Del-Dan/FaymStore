@@ -83,25 +83,44 @@ async function handleUpdateProfile(e) {
     e.preventDefault();
     const btn = e.target.querySelector('button[type="submit"]');
     const txt = btn.innerText;
+
+    // Password Validation
+    const currPass = document.getElementById('profCurrPass').value;
+    const newPass = document.getElementById('profNewPass').value;
+    const repPass = document.getElementById('profRepPass').value;
+
+    if (newPass || repPass) {
+        if (!currPass) { alert("Please enter your current password to change it."); return; }
+        if (newPass !== repPass) { alert("New passwords do not match."); return; }
+        if (newPass.length < 6) { alert("New password must be at least 6 characters."); return; }
+    }
+
     btn.innerText = "Saving..."; btn.disabled = true;
 
     try {
+        const payload = {
+            userId: AppState.user.userId,
+            fullName: document.getElementById('profName').value,
+            phone: document.getElementById('profPhone').value
+        };
+        if (newPass) {
+            payload.currentPassword = currPass;
+            payload.newPassword = newPass;
+        }
+
         const res = await fetch(API_URL, {
             method: 'POST',
-            body: JSON.stringify({
-                action: 'updateUser',
-                payload: {
-                    userId: AppState.user.userId,
-                    fullName: document.getElementById('profName').value,
-                    phone: document.getElementById('profPhone').value
-                }
-            })
+            body: JSON.stringify({ action: 'updateUser', payload: payload })
         }).then(r => r.json());
 
         if (res.success) {
             AppState.user = res.user;
             localStorage.setItem('faym_user', JSON.stringify(res.user));
             alert("Profile Updated Successfully!");
+            // Clear passwords
+            document.getElementById('profCurrPass').value = '';
+            document.getElementById('profNewPass').value = '';
+            document.getElementById('profRepPass').value = '';
             closeProfile();
         } else {
             alert(res.message || "Update failed.");
