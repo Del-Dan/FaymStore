@@ -549,19 +549,91 @@ function toggleCart() {
 }
 
 // --- OTHER UI ---
+let heroInterval;
 function initHero() {
     const con = document.getElementById('sliderContainer');
-    // (Hero logic simplified for brevity but functional)
-    const slide1 = AppState.config['hero_slide_1_url'];
-    if (slide1) {
-        const type = AppState.config['hero_slide_1_type'];
-        con.innerHTML = type === 'video'
-            ? `<video src="${formatImage(slide1)}" class="w-full h-full object-cover" autoplay muted loop playsinline></video>`
-            : `<img src="${formatImage(slide1)}" class="w-full h-full object-cover">`;
-        document.getElementById('heroTitle').innerText = AppState.config['hero_slide_1_text'] || '';
-        document.getElementById('heroTitle').classList.remove('opacity-0');
-        document.getElementById('heroBtn').classList.remove('opacity-0');
+    const titleEl = document.getElementById('heroTitle');
+    const ctaBtn = document.getElementById('heroBtn');
+
+    // 1. Gather Slides
+    const slides = [];
+    for (let i = 1; i <= 5; i++) {
+        const url = AppState.config[`hero_slide_${i}_url`];
+        if (url) {
+            slides.push({
+                url: formatImage(url),
+                type: AppState.config[`hero_slide_${i}_type`] || 'image',
+                text: AppState.config[`hero_slide_${i}_text`] || ''
+            });
+        }
     }
+
+    if (slides.length === 0) return;
+
+    // 2. Render Slides
+    con.innerHTML = slides.map((s, i) => {
+        const media = s.type === 'video'
+            ? `<video src="${s.url}" class="w-full h-full object-cover" muted loop playsinline></video>`
+            : `<img src="${s.url}" class="w-full h-full object-cover">`;
+        return `<div class="absolute inset-0 transition-opacity duration-1000 ease-in-out ${i === 0 ? 'opacity-100 z-10' : 'opacity-0 z-0'}" data-index="${i}">
+                    ${media}
+                    <div class="absolute inset-0 bg-black/20"></div> <!-- Subtle overlay for text contrast -->
+                </div>`;
+    }).join('');
+
+    // 3. Setup Logic
+    let curIdx = 0;
+
+    const updateSlide = () => {
+        // Update Visuals
+        Array.from(con.children).forEach((el, i) => {
+            if (i === curIdx) {
+                el.classList.remove('opacity-0', 'z-0');
+                el.classList.add('opacity-100', 'z-10');
+                const vid = el.querySelector('video');
+                if (vid) vid.play().catch(() => { });
+            } else {
+                el.classList.remove('opacity-100', 'z-10');
+                el.classList.add('opacity-0', 'z-0');
+                const vid = el.querySelector('video');
+                if (vid) { vid.pause(); vid.currentTime = 0; }
+            }
+        });
+
+        // Update Text
+        const txt = slides[curIdx].text;
+        titleEl.style.opacity = '0';
+        setTimeout(() => {
+            titleEl.innerText = txt;
+            titleEl.style.opacity = '1';
+        }, 500);
+
+        // Gradient Background Logic (Toggle if no text?)
+        // Keeping it consistent for now to ensure Button is visible
+    };
+
+    // Initial State
+    updateSlide();
+    ctaBtn.classList.remove('opacity-0');
+
+    // Auto Play
+    const startCycle = () => {
+        if (slides.length > 1) {
+            heroInterval = setInterval(() => {
+                curIdx = (curIdx + 1) % slides.length;
+                updateSlide();
+            }, 5000); // 5 Seconds
+        }
+    };
+
+    startCycle();
+
+    // Pause on Interaction
+    const heroSec = document.getElementById('heroSection');
+    heroSec.onmouseenter = () => clearInterval(heroInterval);
+    heroSec.onmouseleave = startCycle;
+    heroSec.ontouchstart = () => clearInterval(heroInterval);
+    heroSec.ontouchend = startCycle;
 }
 function scrollToGrid() { document.getElementById('productGrid').scrollIntoView({ behavior: 'smooth' }); }
 
