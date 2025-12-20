@@ -14,11 +14,17 @@ const AppState = {
 
 const formatImage = (url) => {
     if (!url) return 'https://via.placeholder.com/400x500?text=No+Image';
-    const driveRegex = /\/d\/([a-zA-Z0-9_-]+)|\?id=([a-zA-Z0-9_-]+)/;
-    const match = url.match(driveRegex);
-    if (match && (url.includes('drive.google.com') || url.includes('docs.google.com'))) {
-        const id = match[1] || match[2];
-        if (id) return `https://lh3.googleusercontent.com/d/${id}`;
+
+    // Check for Google Drive Links
+    if (url.includes('drive.google.com') || url.includes('docs.google.com')) {
+        // Regex to catch /d/ID or id=ID
+        const driveRegex = /(?:\/d\/|id=)([-\w]{25,})/;
+        const match = url.match(driveRegex);
+        if (match && match[1]) {
+            return `https://lh3.googleusercontent.com/d/${match[1]}`;
+        } else {
+            console.warn("Could not parse Drive ID from:", url);
+        }
     }
     return url;
 };
@@ -292,8 +298,8 @@ function createProductCard(p) {
             <div class="relative w-full aspect-[4/5] bg-gray-100 overflow-hidden mb-4 rounded-sm">
                 <img src="${formatImage(p.main_image_url)}" class="w-full h-full object-cover transition duration-700 group-hover:scale-110">
                 ${p.discount_active ? '<span class="absolute top-2 left-2 bg-red-600 text-white text-[10px] uppercase font-bold px-2 py-1">Sale</span>' : ''}
-                <div class="absolute bottom-0 w-full p-4 translate-y-full group-hover:translate-y-0 transition duration-300">
-                    <button class="w-full bg-white text-black py-3 font-semibold text-sm hover:bg-black hover:text-white transition">View Options</button>
+                <div class="absolute bottom-4 left-4 right-4 translate-y-[120%] group-hover:translate-y-0 transition-transform duration-300 ease-out z-20">
+                    <button class="w-full bg-white text-black py-3.5 font-bold text-sm uppercase tracking-wider shadow-lg hover:bg-black hover:text-white transition-all border border-black/10 rounded-sm">View Options</button>
                 </div>
             </div>
             <div>
