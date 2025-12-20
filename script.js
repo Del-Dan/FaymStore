@@ -29,31 +29,42 @@ async function initApp() {
     renderCartCount();
     checkSession();
     try {
-        // Check if running on Apps Script (no action param needed if internal) or external
-        // We use the full API_URL always for consistency if user is running locally
         const res = await fetch(`${API_URL}?action=getStoreData`).then(r => r.json());
-
-        // Fix numeric types immediately
         AppState.products = res.products.map(p => ({
             ...p,
             base_price: Number(p.base_price),
             discount_price: Number(p.discount_price),
-            // Ensure is_new is boolean-like
             is_new: String(p.is_new).toUpperCase() === 'TRUE'
         }));
         AppState.inventory = res.inventory;
         AppState.config = res.config;
-
-        populateFilters();
-        renderProductGrid();
-        initHero();
-        renderLatestDrops();
-        if (AppState.user) fetchLikes();
-
+        finalizeInit();
     } catch (e) {
-        console.error("Init failed", e);
-        document.getElementById('productGrid').innerHTML = '<div class="col-span-full text-center text-red-500">Failed to load data. Please refresh.</div>';
+        console.warn("API Init failed, using mock data for testing", e);
+        // Mock Data for Testing
+        AppState.products = [];
+        AppState.inventory = [];
+        AppState.config = {
+            hero_slide_1_url: 'https://images.unsplash.com/photo-1483985988355-763728e1935b?q=80&w=2070&auto=format&fit=crop',
+            hero_slide_1_type: 'image',
+            hero_slide_1_text: 'New Collection',
+            hero_slide_2_url: 'https://cdn.pixabay.com/vimeo/328940142/fashion-23602.mp4?width=1280&hash=12c6a0149021575877c858593457193766774211', // Sample Video
+            hero_slide_2_type: 'video',
+            hero_slide_2_text: 'Summer Vibes',
+            hero_slide_3_url: 'https://images.unsplash.com/photo-1469334031218-e382a71b716b?q=80&w=2070&auto=format&fit=crop',
+            hero_slide_3_type: 'image',
+            hero_slide_3_text: 'Exclusive Styles'
+        };
+        finalizeInit();
     }
+}
+
+function finalizeInit() {
+    populateFilters();
+    renderProductGrid();
+    initHero();
+    renderLatestDrops();
+    if (AppState.user) fetchLikes();
 }
 
 // --- AUTH ---
@@ -570,11 +581,16 @@ function initHero() {
     if (slides.length === 0) return;
 
     // 2. Render Slides DOM
+    // Uses translateX for sliding. Initial state: Index 0 is visible (0%), others hidden (100%).
     const slidesHtml = slides.map((s, i) => {
         const media = s.type === 'video'
             ? `<video src="${s.url}" class="w-full h-full object-cover" muted loop playsinline></video>`
             : `<img src="${s.url}" class="w-full h-full object-cover">`;
-        return `<div class="absolute inset-0 transition-opacity duration-1000 ease-in-out ${i === 0 ? 'opacity-100 z-10' : 'opacity-0 z-0'}" data-index="${i}">
+
+        // Initial Styles
+        const style = i === 0 ? 'transform: translateX(0); z-index: 10; opacity: 1;' : 'transform: translateX(100%); z-index: 0; opacity: 0;';
+
+        return `<div class="absolute inset-0 transition-transform duration-500 ease-in-out bg-gray-100" style="${style}" data-index="${i}">
                     ${media}
                     <div class="absolute inset-0 bg-black/20"></div>
                 </div>`;
@@ -582,15 +598,12 @@ function initHero() {
 
     // 3. Render Controls (Arrows & Dots)
     const controlsHtml = `
-        <!-- Prev Button -->
         <button id="heroPrev" class="absolute left-4 top-1/2 -translate-y-1/2 z-30 p-3 rounded-full bg-black/20 text-white backdrop-blur-md hover:bg-black/50 hover:scale-110 transition hidden md:block">
             <i class="bi bi-chevron-left text-2xl"></i>
         </button>
-        <!-- Next Button -->
         <button id="heroNext" class="absolute right-4 top-1/2 -translate-y-1/2 z-30 p-3 rounded-full bg-black/20 text-white backdrop-blur-md hover:bg-black/50 hover:scale-110 transition hidden md:block">
             <i class="bi bi-chevron-right text-2xl"></i>
         </button>
-        <!-- Pagination Dots -->
         <div class="absolute bottom-6 left-1/2 -translate-x-1/2 z-30 flex gap-2 items-center" id="heroDots">
             ${slides.map((_, i) => `<button onclick="jumpToSlide(${i})" class="h-1.5 rounded-full transition-all duration-300 ${i === 0 ? 'w-8 bg-white' : 'w-1.5 bg-white/50 hover:bg-white'}"></button>`).join('')}
         </div>
@@ -600,89 +613,124 @@ function initHero() {
 
     // 4. Setup State & Logic
     let curIdx = 0;
+    let isAnimating = false;
 
-    // Globalize jump function for HTML access
-    window.jumpToSlide = (idx) => {
-        curIdx = idx;
-        updateSlide();
-        resetTimer();
-    };
-
-    const updateSlide = () => {
-        // Update Slides
-        Array.from(con.children).forEach((el) => {
-            if (!el.hasAttribute('data-index')) return; // Skip controls
-            const i = parseInt(el.getAttribute('data-index'));
-
-            if (i === curIdx) {
-                el.classList.remove('opacity-0', 'z-0');
-                el.classList.add('opacity-100', 'z-10');
-                const vid = el.querySelector('video');
-                if (vid) vid.play().catch(() => { });
-            } else {
-                el.classList.remove('opacity-100', 'z-10');
-                el.classList.add('opacity-0', 'z-0');
-                const vid = el.querySelector('video');
-                if (vid) { vid.pause(); vid.currentTime = 0; }
-            }
-        });
-
-        // Update Dots
-        const dots = document.getElementById('heroDots').children;
-        Array.from(dots).forEach((dot, i) => {
-            dot.className = i === curIdx
-                ? "h-1.5 rounded-full transition-all duration-300 w-8 bg-white"
-                : "h-1.5 rounded-full transition-all duration-300 w-1.5 bg-white/50 hover:bg-white";
-        });
-
-        // Update Text
-        const txt = slides[curIdx].text;
+    // Helper to update text
+    const updateText = (idx) => {
+        const txt = slides[idx].text;
         titleEl.style.opacity = '0';
         setTimeout(() => {
             titleEl.innerText = txt;
             titleEl.style.opacity = '1';
-        }, 500);
+        }, 300);
+
+        // Update Dots
+        const dots = document.getElementById('heroDots').children;
+        Array.from(dots).forEach((dot, i) => {
+            dot.className = i === idx
+                ? "h-1.5 rounded-full transition-all duration-300 w-8 bg-white"
+                : "h-1.5 rounded-full transition-all duration-300 w-1.5 bg-white/50 hover:bg-white";
+        });
     };
 
-    // Controls Logic
+    // Initialize Text
+    updateText(0);
+    ctaBtn.classList.remove('opacity-0');
+
+    // Slide Transition Logic
+    const transitionSlide = (nextIdx, direction) => {
+        if (isAnimating || nextIdx === curIdx) return;
+        isAnimating = true;
+
+        const slideEls = Array.from(con.children).filter(el => el.hasAttribute('data-index'));
+        const currEl = slideEls[curIdx];
+        const nextEl = slideEls[nextIdx];
+
+        // Videos
+        const nextVid = nextEl.querySelector('video');
+        if (nextVid) nextVid.play().catch(() => { });
+
+        // Determine positions
+        // Next: Curr (-100%), Next starts (100%) -> (0%)
+        // Prev: Curr (100%), Next starts (-100%) -> (0%)
+        const startPos = direction === 'next' ? '100%' : '-100%';
+        const endPos = direction === 'next' ? '-100%' : '100%';
+
+        // Prepare Next Slide (Instant)
+        nextEl.style.transition = 'none';
+        nextEl.style.transform = `translateX(${startPos})`;
+        nextEl.style.zIndex = '20';
+        nextEl.style.opacity = '1';
+
+        // Force Reflow
+        void nextEl.offsetWidth;
+
+        // Animate (Restore Transition)
+        const transitionStyle = 'transform 0.5s ease-in-out';
+        currEl.style.transition = transitionStyle;
+        nextEl.style.transition = transitionStyle;
+
+        // Execute Move
+        requestAnimationFrame(() => {
+            currEl.style.transform = `translateX(${endPos})`;
+            nextEl.style.transform = `translateX(0)`;
+        });
+
+        // Cleanup
+        setTimeout(() => {
+            currEl.style.zIndex = '0';
+            currEl.style.opacity = '0'; // Hide
+            const currVid = currEl.querySelector('video');
+            if (currVid) { currVid.pause(); currVid.currentTime = 0; }
+
+            isAnimating = false;
+        }, 500); // Match duration
+
+        curIdx = nextIdx;
+        updateText(curIdx);
+    };
+
+    // Globalize jump
+    window.jumpToSlide = (idx) => {
+        if (idx === curIdx) return;
+        // Logic: if target > current, assume next, else prev
+        const dir = idx > curIdx ? 'next' : 'prev';
+        transitionSlide(idx, dir);
+        resetTimer();
+    };
+
     const nextSlide = () => {
-        curIdx = (curIdx + 1) % slides.length;
-        updateSlide();
+        const next = (curIdx + 1) % slides.length;
+        transitionSlide(next, 'next');
     };
 
     const prevSlide = () => {
-        curIdx = (curIdx - 1 + slides.length) % slides.length;
-        updateSlide();
+        const prev = (curIdx - 1 + slides.length) % slides.length;
+        transitionSlide(prev, 'prev');
     };
 
+    // Bind Buttons
     const nextBtn = document.getElementById('heroNext');
     const prevBtn = document.getElementById('heroPrev');
     if (nextBtn) nextBtn.onclick = () => { nextSlide(); resetTimer(); };
     if (prevBtn) prevBtn.onclick = () => { prevSlide(); resetTimer(); };
 
-    // Initial State
-    updateSlide();
-    ctaBtn.classList.remove('opacity-0');
-
-    // Auto Play Timer
+    // Auto Play
     const startCycle = () => {
         if (slides.length > 1) {
             clearInterval(heroInterval);
             heroInterval = setInterval(nextSlide, 5000);
         }
     };
-
     const resetTimer = () => {
         clearInterval(heroInterval);
         startCycle();
     };
-
     startCycle();
 
     // 5. Touch / Swipe Support
     let touchStartX = 0;
     let touchEndX = 0;
-
     const heroSec = document.getElementById('heroSection');
 
     heroSec.ontouchstart = (e) => {
@@ -697,11 +745,14 @@ function initHero() {
     };
 
     const handleSwipe = () => {
-        if (touchEndX < touchStartX - 50) nextSlide();
-        if (touchEndX > touchStartX + 50) prevSlide();
+        const diff = touchEndX - touchStartX;
+        if (Math.abs(diff) > 50) {
+            if (diff < 0) nextSlide(); // Swipe Left -> Next
+            else prevSlide(); // Swipe Right -> Prev
+        }
     };
 
-    // Pause on Hover (Desktop)
+    // Pause on Hover
     heroSec.onmouseenter = () => clearInterval(heroInterval);
     heroSec.onmouseleave = startCycle;
 }
