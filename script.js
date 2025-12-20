@@ -418,6 +418,7 @@ let currentGroup = [], currentVar = null, selSize = null;
 let currentGallery = [], galleryIdx = 0;
 
 async function initGallery(varData) {
+    console.log("Initializing Gallery v2.1");
     const mainImg = formatImage(varData.main_image_url);
     currentGallery = [mainImg];
     galleryIdx = 0;
