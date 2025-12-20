@@ -547,7 +547,6 @@ function toggleCart() {
     document.getElementById('cartBackdrop').classList.toggle('hidden');
     setTimeout(() => document.getElementById('cartBackdrop').classList.toggle('opacity-0'), 10);
 }
-
 // --- OTHER UI ---
 let heroInterval;
 function initHero() {
@@ -570,23 +569,51 @@ function initHero() {
 
     if (slides.length === 0) return;
 
-    // 2. Render Slides
-    con.innerHTML = slides.map((s, i) => {
+    // 2. Render Slides DOM
+    const slidesHtml = slides.map((s, i) => {
         const media = s.type === 'video'
             ? `<video src="${s.url}" class="w-full h-full object-cover" muted loop playsinline></video>`
             : `<img src="${s.url}" class="w-full h-full object-cover">`;
         return `<div class="absolute inset-0 transition-opacity duration-1000 ease-in-out ${i === 0 ? 'opacity-100 z-10' : 'opacity-0 z-0'}" data-index="${i}">
                     ${media}
-                    <div class="absolute inset-0 bg-black/20"></div> <!-- Subtle overlay for text contrast -->
+                    <div class="absolute inset-0 bg-black/20"></div>
                 </div>`;
     }).join('');
 
-    // 3. Setup Logic
+    // 3. Render Controls (Arrows & Dots)
+    const controlsHtml = `
+        <!-- Prev Button -->
+        <button id="heroPrev" class="absolute left-4 top-1/2 -translate-y-1/2 z-30 p-3 rounded-full bg-black/20 text-white backdrop-blur-md hover:bg-black/50 hover:scale-110 transition hidden md:block">
+            <i class="bi bi-chevron-left text-2xl"></i>
+        </button>
+        <!-- Next Button -->
+        <button id="heroNext" class="absolute right-4 top-1/2 -translate-y-1/2 z-30 p-3 rounded-full bg-black/20 text-white backdrop-blur-md hover:bg-black/50 hover:scale-110 transition hidden md:block">
+            <i class="bi bi-chevron-right text-2xl"></i>
+        </button>
+        <!-- Pagination Dots -->
+        <div class="absolute bottom-6 left-1/2 -translate-x-1/2 z-30 flex gap-2 items-center" id="heroDots">
+            ${slides.map((_, i) => `<button onclick="jumpToSlide(${i})" class="h-1.5 rounded-full transition-all duration-300 ${i === 0 ? 'w-8 bg-white' : 'w-1.5 bg-white/50 hover:bg-white'}"></button>`).join('')}
+        </div>
+    `;
+
+    con.innerHTML = slidesHtml + controlsHtml;
+
+    // 4. Setup State & Logic
     let curIdx = 0;
 
+    // Globalize jump function for HTML access
+    window.jumpToSlide = (idx) => {
+        curIdx = idx;
+        updateSlide();
+        resetTimer();
+    };
+
     const updateSlide = () => {
-        // Update Visuals
-        Array.from(con.children).forEach((el, i) => {
+        // Update Slides
+        Array.from(con.children).forEach((el) => {
+            if (!el.hasAttribute('data-index')) return; // Skip controls
+            const i = parseInt(el.getAttribute('data-index'));
+
             if (i === curIdx) {
                 el.classList.remove('opacity-0', 'z-0');
                 el.classList.add('opacity-100', 'z-10');
@@ -600,6 +627,14 @@ function initHero() {
             }
         });
 
+        // Update Dots
+        const dots = document.getElementById('heroDots').children;
+        Array.from(dots).forEach((dot, i) => {
+            dot.className = i === curIdx
+                ? "h-1.5 rounded-full transition-all duration-300 w-8 bg-white"
+                : "h-1.5 rounded-full transition-all duration-300 w-1.5 bg-white/50 hover:bg-white";
+        });
+
         // Update Text
         const txt = slides[curIdx].text;
         titleEl.style.opacity = '0';
@@ -607,33 +642,68 @@ function initHero() {
             titleEl.innerText = txt;
             titleEl.style.opacity = '1';
         }, 500);
-
-        // Gradient Background Logic (Toggle if no text?)
-        // Keeping it consistent for now to ensure Button is visible
     };
+
+    // Controls Logic
+    const nextSlide = () => {
+        curIdx = (curIdx + 1) % slides.length;
+        updateSlide();
+    };
+
+    const prevSlide = () => {
+        curIdx = (curIdx - 1 + slides.length) % slides.length;
+        updateSlide();
+    };
+
+    const nextBtn = document.getElementById('heroNext');
+    const prevBtn = document.getElementById('heroPrev');
+    if (nextBtn) nextBtn.onclick = () => { nextSlide(); resetTimer(); };
+    if (prevBtn) prevBtn.onclick = () => { prevSlide(); resetTimer(); };
 
     // Initial State
     updateSlide();
     ctaBtn.classList.remove('opacity-0');
 
-    // Auto Play
+    // Auto Play Timer
     const startCycle = () => {
         if (slides.length > 1) {
-            heroInterval = setInterval(() => {
-                curIdx = (curIdx + 1) % slides.length;
-                updateSlide();
-            }, 5000); // 5 Seconds
+            clearInterval(heroInterval);
+            heroInterval = setInterval(nextSlide, 5000);
         }
+    };
+
+    const resetTimer = () => {
+        clearInterval(heroInterval);
+        startCycle();
     };
 
     startCycle();
 
-    // Pause on Interaction
+    // 5. Touch / Swipe Support
+    let touchStartX = 0;
+    let touchEndX = 0;
+
     const heroSec = document.getElementById('heroSection');
+
+    heroSec.ontouchstart = (e) => {
+        touchStartX = e.changedTouches[0].screenX;
+        clearInterval(heroInterval);
+    };
+
+    heroSec.ontouchend = (e) => {
+        touchEndX = e.changedTouches[0].screenX;
+        handleSwipe();
+        startCycle();
+    };
+
+    const handleSwipe = () => {
+        if (touchEndX < touchStartX - 50) nextSlide();
+        if (touchEndX > touchStartX + 50) prevSlide();
+    };
+
+    // Pause on Hover (Desktop)
     heroSec.onmouseenter = () => clearInterval(heroInterval);
     heroSec.onmouseleave = startCycle;
-    heroSec.ontouchstart = () => clearInterval(heroInterval);
-    heroSec.ontouchend = startCycle;
 }
 function scrollToGrid() { document.getElementById('productGrid').scrollIntoView({ behavior: 'smooth' }); }
 
