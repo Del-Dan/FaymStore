@@ -46,35 +46,58 @@ async function initApp() {
         AppState.config = res.config;
         AppState.locations = res.locations; // Capture locations from API
         finalizeInit();
-        if (AppState.user) {
-            syncFavorites();
-        }
     } catch (e) {
         console.warn("API Init failed, using mock data for testing", e);
-        // ... (Mock Data Logic checkSession call needs to be here if not already)
+        // Mock Data for Testing
+        AppState.products = [
+            {
+                parent_code: "P001",
+                sub_code: "P001-BLK",
+                product_name: "Essential Tee",
+                category: "T-Shirt",
+                base_price: 150,
+                discount_price: 120,
+                discount_active: true,
+                main_image_url: "https://drive.google.com/file/d/1yZkwb3_jfqXfq_t1f_9ggA-w2y2_x3_3/view?usp=sharing", // Example Drive Link
+                color_name: "Black",
+                color_hex: "#000000",
+                variants: []
+            },
+            {
+                parent_code: "P002",
+                sub_code: "P002-WHT",
+                product_name: "Classic Hoodie",
+                category: "Hoodie",
+                base_price: 300,
+                discount_price: 0,
+                discount_active: false,
+                main_image_url: "https://drive.google.com/open?id=1yZkwb3_jfqXfq_t1f_9ggA-w2y2_x3_3", // Alternate Drive Link Format
+                color_name: "White",
+                color_hex: "#ffffff",
+                variants: []
+            }
+        ];
+        AppState.inventory = [
+            { sub_code: "P001-BLK", size: "M", stock_qty: 10, sku_id: "SKU1" },
+            { sub_code: "P002-WHT", size: "L", stock_qty: 5, sku_id: "SKU2" }
+        ];
+        AppState.config = {
+            hero_slide_1_url: 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?q=80&w=2070&auto=format&fit=crop',
+            hero_slide_1_type: 'image',
+            hero_slide_1_text: 'Elevate Your Style',
+            hero_slide_1_subtext: 'Premium collection for the modern individual.',
+            hero_slide_2_url: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4',
+            hero_slide_2_type: 'video',
+            hero_slide_2_text: 'Experience Freedom',
+            hero_slide_2_subtext: '',
+            hero_slide_3_url: 'https://images.unsplash.com/photo-1483985988355-763728e1935b?q=80&w=2070&auto=format&fit=crop',
+            hero_slide_3_type: 'image',
+            hero_slide_3_text: 'Latest Drops',
+            hero_slide_3_subtext: 'Shop the new season favorites.'
+        };
         finalizeInit();
     }
 }
-
-async function syncFavorites() {
-    if (!AppState.user) return;
-    try {
-        const res = await fetch(API_URL, {
-            method: 'POST',
-            body: JSON.stringify({ action: 'getLikes', payload: { email: AppState.user.email } })
-        }).then(r => r.json());
-
-        if (res.success) {
-            AppState.favorites = res.likes || [];
-            renderProducts(); // Update Grid UI
-            // If profile is open and on favorites tab?
-            if (!document.getElementById('paneFavorites').classList.contains('hidden')) {
-                renderProfileFavorites();
-            }
-        }
-    } catch (e) { console.error("Sync Favorites Failed", e); }
-}
-
 
 function finalizeInit() {
     populateFilters();
@@ -86,14 +109,10 @@ function finalizeInit() {
 }
 
 // --- AUTH ---
-// --- AUTH ---
 function checkSession() {
     if (AppState.user) {
         document.getElementById('authIcon').className = "bi bi-person-fill";
         document.getElementById('authStatusDot').classList.remove('hidden');
-    } else {
-        document.getElementById('authIcon').className = "bi bi-person";
-        document.getElementById('authStatusDot').classList.add('hidden');
     }
 }
 function handleAuthClick() { AppState.user ? openProfile() : openAuth(); }
@@ -109,97 +128,40 @@ function openProfile() {
     switchProfileTab('details'); // Default tab
 }
 
-// --- TABS ---
 function switchProfileTab(tab) {
     const tDet = document.getElementById('tabDetails');
-    const tFav = document.getElementById('tabFavorites');
     const tOrd = document.getElementById('tabOrders');
-
     const pDet = document.getElementById('paneDetails');
-    const pFav = document.getElementById('paneFavorites');
     const pOrd = document.getElementById('paneOrders');
 
-    // Reset All Classes
-    [tDet, tFav, tOrd].forEach(t => {
-        t.className = "pb-2 text-sm font-bold text-gray-400 border-b-2 border-transparent hover:text-gray-600 transition";
-    });
-    [pDet, pFav, pOrd].forEach(p => p.classList.add('hidden'));
-
-    // Activate Current
     if (tab === 'details') {
         tDet.className = "pb-2 text-sm font-bold border-b-2 border-black transition";
         tDet.classList.remove('text-gray-400');
+        tOrd.className = "pb-2 text-sm font-bold text-gray-400 border-b-2 border-transparent hover:text-gray-600 transition";
         pDet.classList.remove('hidden');
-    }
-    else if (tab === 'favorites') {
-        tFav.className = "pb-2 text-sm font-bold border-b-2 border-black transition";
-        tFav.classList.remove('text-gray-400');
-        pFav.classList.remove('hidden');
-        renderProfileFavorites();
-    }
-    else {
+        pOrd.classList.add('hidden');
+    } else {
         tOrd.className = "pb-2 text-sm font-bold border-b-2 border-black transition";
         tOrd.classList.remove('text-gray-400');
+        tDet.className = "pb-2 text-sm font-bold text-gray-400 border-b-2 border-transparent hover:text-gray-600 transition";
         pOrd.classList.remove('hidden');
+        pDet.classList.add('hidden');
         loadOrderHistory();
     }
 }
 
-function renderProfileFavorites() {
-    const div = document.getElementById('paneFavorites');
+async function loadOrderHistory() {
+    const div = document.getElementById('paneOrders');
+    div.innerHTML = '<div class="text-center py-4"><div class="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto"></div></div>';
 
-    if (!AppState.favorites || AppState.favorites.length === 0) {
-        div.innerHTML = `
-            <div class="text-center py-8 text-gray-500">
-                <i class="bi bi-heart text-4xl mb-2 block"></i>
-                <p>No favorites yet.</p>
-                <button onclick="closeProfile(); scrollToGrid();" class="mt-4 text-sm font-bold underline">Explore Store</button>
-            </div>`;
-        return;
-    }
+    try {
+        const res = await fetch(API_URL, {
+            method: 'POST',
+            body: JSON.stringify({ action: 'getOrderHistory', payload: { email: AppState.user.email } })
+        }).then(r => r.json());
 
-    // Find products matching favorites (sub_code match)
-    // Map favorites to products. Since favorites are sub_codes, we find the parent then variant.
-    // For display, we just show the product card style or list style
-
-    const favItems = AppState.favorites.map(subCode => {
-        // Find product containing this subCode
-        const product = AppState.products.find(p => p.sub_code === subCode || (p.variants && p.variants.find(v => v.sub_code === subCode)));
-        return product;
-    }).filter(p => p); // remove nulls
-
-    // Deduplicate by parent code for display? 
-    // Or just show them. Let's just show unique products.
-    const uniqueFavs = [...new Set(favItems)];
-
-    div.innerHTML = uniqueFavs.map(p => `
-        <div class="flex gap-4 items-center border-b pb-4 last:border-0">
-             <div class="w-16 h-20 bg-gray-100 rounded overflow-hidden flex-shrink-0 cursor-pointer" onclick="closeProfile(); openProductModal('${p.parent_code}')">
-                <img src="${formatImage(p.main_image_url)}" class="w-full h-full object-cover">
-             </div>
-             <div class="flex-1">
-                 <h4 class="font-bold text-sm cursor-pointer hover:underline" onclick="closeProfile(); openProductModal('${p.parent_code}')">${p.product_name}</h4>
-                 <p class="text-xs text-gray-500">${p.category} | ${p.color_name}</p>
-                 <span class="text-sm font-bold mt-1 block">${AppState.currency}${p.discount_active ? p.discount_price : p.base_price}</span>
-             </div>
-             <button onclick="toggleGridLike(event, '${p.sub_code}'); renderProfileFavorites();" class="text-red-500 hover:text-red-700 p-2">
-                 <i class="bi bi-trash"></i>
-             </button>
-        </div>
-    `).join('');
-
-    async function loadOrderHistory() {
-        const div = document.getElementById('paneOrders');
-        div.innerHTML = '<div class="text-center py-4"><div class="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto"></div></div>';
-
-        try {
-            const res = await fetch(API_URL, {
-                method: 'POST',
-                body: JSON.stringify({ action: 'getOrderHistory', payload: { email: AppState.user.email } })
-            }).then(r => r.json());
-
-            if (res.success && res.orders.length > 0) {
-                div.innerHTML = res.orders.map(o => `
+        if (res.success && res.orders.length > 0) {
+            div.innerHTML = res.orders.map(o => `
                 <div class="border rounded-lg p-3 text-sm">
                     <div class="flex justify-between items-start mb-2">
                         <div>
@@ -219,271 +181,268 @@ function renderProfileFavorites() {
                     </div>
                 </div>
             `).join('');
-            } else {
-                div.innerHTML = `
+        } else {
+            div.innerHTML = `
                 <div class="text-center py-8 text-gray-500">
                      <i class="bi bi-bag-x text-4xl mb-2 block"></i>
                      <p>No orders found.</p>
                 </div>`;
-            }
-        } catch (e) {
-            div.innerHTML = '<div class="text-red-500 text-center text-sm">Failed to load orders.</div>';
         }
+    } catch (e) {
+        div.innerHTML = '<div class="text-red-500 text-center text-sm">Failed to load orders.</div>';
+    }
+}
+
+function getStatusColor(status) {
+    switch (status.toLowerCase()) {
+        case 'pending': return 'bg-yellow-100 text-yellow-800';
+        case 'paid': return 'bg-blue-100 text-blue-800';
+        case 'processing': return 'bg-purple-100 text-purple-800';
+        case 'shipped': return 'bg-indigo-100 text-indigo-800';
+        case 'delivered': return 'bg-green-100 text-green-800';
+        case 'cancelled': return 'bg-red-100 text-red-800';
+        default: return 'bg-gray-100 text-gray-800';
+    }
+}
+
+function closeProfile() {
+    document.getElementById('profileModal').classList.add('hidden');
+    document.getElementById('profileModal').classList.remove('flex');
+}
+
+async function handleUpdateProfile(e) {
+    e.preventDefault();
+    const btn = e.target.querySelector('button[type="submit"]');
+    const txt = btn.innerText;
+
+    // Password Validation
+    const currPass = document.getElementById('profCurrPass').value;
+    const newPass = document.getElementById('profNewPass').value;
+    const repPass = document.getElementById('profRepPass').value;
+
+    if (newPass || repPass) {
+        if (!currPass) { alert("Please enter your current password to change it."); return; }
+        if (newPass !== repPass) { alert("New passwords do not match."); return; }
+        if (newPass.length < 6) { alert("New password must be at least 6 characters."); return; }
     }
 
-    function getStatusColor(status) {
-        switch (status.toLowerCase()) {
-            case 'pending': return 'bg-yellow-100 text-yellow-800';
-            case 'paid': return 'bg-blue-100 text-blue-800';
-            case 'processing': return 'bg-purple-100 text-purple-800';
-            case 'shipped': return 'bg-indigo-100 text-indigo-800';
-            case 'delivered': return 'bg-green-100 text-green-800';
-            case 'cancelled': return 'bg-red-100 text-red-800';
-            default: return 'bg-gray-100 text-gray-800';
+    btn.innerText = "Saving..."; btn.disabled = true;
+
+    try {
+        const payload = {
+            userId: AppState.user.userId,
+            fullName: document.getElementById('profName').value,
+            phone: document.getElementById('profPhone').value
+        };
+        if (newPass) {
+            payload.currentPassword = currPass;
+            payload.newPassword = newPass;
         }
-    }
 
-    function closeProfile() {
-        document.getElementById('profileModal').classList.add('hidden');
-        document.getElementById('profileModal').classList.remove('flex');
-    }
+        const res = await fetch(API_URL, {
+            method: 'POST',
+            body: JSON.stringify({ action: 'updateUser', payload: payload })
+        }).then(r => r.json());
 
-    async function handleUpdateProfile(e) {
-        e.preventDefault();
-        const btn = e.target.querySelector('button[type="submit"]');
-        const txt = btn.innerText;
-
-        // Password Validation
-        const currPass = document.getElementById('profCurrPass').value;
-        const newPass = document.getElementById('profNewPass').value;
-        const repPass = document.getElementById('profRepPass').value;
-
-        if (newPass || repPass) {
-            if (!currPass) { alert("Please enter your current password to change it."); return; }
-            if (newPass !== repPass) { alert("New passwords do not match."); return; }
-            if (newPass.length < 6) { alert("New password must be at least 6 characters."); return; }
+        if (res.success) {
+            AppState.user = res.user;
+            localStorage.setItem('faym_user', JSON.stringify(res.user));
+            alert("Profile Updated Successfully!");
+            // Clear passwords
+            document.getElementById('profCurrPass').value = '';
+            document.getElementById('profNewPass').value = '';
+            document.getElementById('profRepPass').value = '';
+            closeProfile();
+        } else {
+            alert(res.message || "Update failed.");
         }
+    } catch (e) { alert("Connection Error"); }
+    btn.innerText = txt; btn.disabled = false;
+}
 
-        btn.innerText = "Saving..."; btn.disabled = true;
+// --- AUTH LOGIC ---
+function openAuth() { document.getElementById('authModal').classList.remove('hidden'); document.getElementById('authModal').classList.add('flex'); }
+function closeAuth() { document.getElementById('authModal').classList.add('hidden'); document.getElementById('authModal').classList.remove('flex'); }
 
-        try {
-            const payload = {
-                userId: AppState.user.userId,
-                fullName: document.getElementById('profName').value,
-                phone: document.getElementById('profPhone').value
-            };
-            if (newPass) {
-                payload.currentPassword = currPass;
-                payload.newPassword = newPass;
-            }
+function switchAuth(mode) {
+    ['loginForm', 'registerForm', 'forgotForm'].forEach(id => document.getElementById(id).classList.add('hidden'));
+    document.getElementById(`${mode}Form`).classList.remove('hidden');
+}
 
-            const res = await fetch(API_URL, {
-                method: 'POST',
-                body: JSON.stringify({ action: 'updateUser', payload: payload })
-            }).then(r => r.json());
+function clearError(input) {
+    input.classList.remove('border-red-500');
+    const p = input.nextElementSibling;
+    if (p && p.classList.contains('error-msg')) p.classList.add('hidden');
+}
 
-            if (res.success) {
-                AppState.user = res.user;
-                localStorage.setItem('faym_user', JSON.stringify(res.user));
-                alert("Profile Updated Successfully!");
-                // Clear passwords
-                document.getElementById('profCurrPass').value = '';
-                document.getElementById('profNewPass').value = '';
-                document.getElementById('profRepPass').value = '';
-                closeProfile();
-            } else {
-                alert(res.message || "Update failed.");
-            }
-        } catch (e) { alert("Connection Error"); }
-        btn.innerText = txt; btn.disabled = false;
+function showError(input, msg) {
+    input.classList.add('border-red-500');
+    const p = input.nextElementSibling;
+    if (p && p.classList.contains('error-msg')) {
+        p.innerText = msg;
+        p.classList.remove('hidden');
     }
+}
 
-    // --- AUTH LOGIC ---
-    function openAuth() { document.getElementById('authModal').classList.remove('hidden'); document.getElementById('authModal').classList.add('flex'); }
-    function closeAuth() { document.getElementById('authModal').classList.add('hidden'); document.getElementById('authModal').classList.remove('flex'); }
+async function handleLogin(e) {
+    e.preventDefault();
+    const f = e.target;
+    let valid = true;
 
-    function switchAuth(mode) {
-        ['loginForm', 'registerForm', 'forgotForm'].forEach(id => document.getElementById(id).classList.add('hidden'));
-        document.getElementById(`${mode}Form`).classList.remove('hidden');
-    }
+    // Inline Validation
+    clearError(f.email);
+    clearError(f.password);
 
-    function clearError(input) {
-        input.classList.remove('border-red-500');
-        const p = input.nextElementSibling;
-        if (p && p.classList.contains('error-msg')) p.classList.add('hidden');
-    }
+    if (!f.email.value.trim()) { showError(f.email, 'Email is required'); valid = false; }
+    if (!f.password.value.trim()) { showError(f.password, 'Password is required'); valid = false; }
 
-    function showError(input, msg) {
-        input.classList.add('border-red-500');
-        const p = input.nextElementSibling;
-        if (p && p.classList.contains('error-msg')) {
-            p.innerText = msg;
-            p.classList.remove('hidden');
+    if (!valid) return;
+
+    const btn = f.querySelector('button[type="submit"]');
+    const txt = btn.innerText;
+    btn.innerText = "Verifying..."; btn.disabled = true;
+
+    try {
+        const res = await fetch(API_URL, {
+            method: 'POST',
+            body: JSON.stringify({ action: 'loginUser', payload: { email: f.email.value.trim(), password: f.password.value.trim() } })
+        }).then(r => r.json());
+
+        if (res.success) {
+            AppState.user = res.user;
+            localStorage.setItem('faym_user', JSON.stringify(res.user));
+            location.reload();
+        } else {
+            // General Error (or map to specific field if backend supports)
+            showError(f.password, res.message || "Invalid credentials");
         }
-    }
+    } catch (e) { showError(f.password, "Connection Error"); }
+    btn.innerText = txt; btn.disabled = false;
+}
 
-    async function handleLogin(e) {
-        e.preventDefault();
-        const f = e.target;
-        let valid = true;
+async function handleRegister(e) {
+    e.preventDefault();
+    const f = e.target;
+    let valid = true;
 
-        // Inline Validation
-        clearError(f.email);
-        clearError(f.password);
+    // Clear previous errors
+    clearError(f.fullName);
+    clearError(f.email);
+    clearError(f.phone);
+    clearError(f.password);
 
-        if (!f.email.value.trim()) { showError(f.email, 'Email is required'); valid = false; }
-        if (!f.password.value.trim()) { showError(f.password, 'Password is required'); valid = false; }
+    // Inline Validation
+    if (!f.fullName.value.trim()) { showError(f.fullName, 'Name is required'); valid = false; }
+    if (!f.email.value.trim() || !f.email.value.includes('@')) { showError(f.email, 'Valid email required'); valid = false; }
+    if (!f.phone.value.trim() || f.phone.value.length < 10) { showError(f.phone, 'Valid phone required'); valid = false; }
+    if (f.password.value.length < 6) { showError(f.password, 'Min 6 chars required'); valid = false; }
 
-        if (!valid) return;
+    if (!valid) return;
 
-        const btn = f.querySelector('button[type="submit"]');
-        const txt = btn.innerText;
-        btn.innerText = "Verifying..."; btn.disabled = true;
+    const btn = f.querySelector('button[type="submit"]');
+    const txt = btn.innerText;
+    btn.innerText = "Creating..."; btn.disabled = true;
 
-        try {
-            const res = await fetch(API_URL, {
-                method: 'POST',
-                body: JSON.stringify({ action: 'loginUser', payload: { email: f.email.value.trim(), password: f.password.value.trim() } })
-            }).then(r => r.json());
+    try {
+        const res = await fetch(API_URL, {
+            method: 'POST',
+            body: JSON.stringify({
+                action: 'registerUser',
+                payload: {
+                    fullName: f.fullName.value,
+                    email: f.email.value.trim(),
+                    phone: f.phone.value,
+                    password: f.password.value
+                }
+            })
+        }).then(r => r.json());
 
-            if (res.success) {
-                AppState.user = res.user;
-                localStorage.setItem('faym_user', JSON.stringify(res.user));
-                checkSession();
-                closeAuth();
-                showToast("Welcome back, " + res.user.fullName);
-                syncFavorites();
-            } else {
-                // General Error (or map to specific field if backend supports)
-                showError(f.password, res.message || "Invalid credentials");
-            }
-        } catch (e) { showError(f.password, "Connection Error"); }
-        btn.innerText = txt; btn.disabled = false;
-    }
-
-    async function handleRegister(e) {
-        e.preventDefault();
-        const f = e.target;
-        let valid = true;
-
-        // Clear previous errors
-        clearError(f.fullName);
-        clearError(f.email);
-        clearError(f.phone);
-        clearError(f.password);
-
-        // Inline Validation
-        if (!f.fullName.value.trim()) { showError(f.fullName, 'Name is required'); valid = false; }
-        if (!f.email.value.trim() || !f.email.value.includes('@')) { showError(f.email, 'Valid email required'); valid = false; }
-        if (!f.phone.value.trim() || f.phone.value.length < 10) { showError(f.phone, 'Valid phone required'); valid = false; }
-        if (f.password.value.length < 6) { showError(f.password, 'Min 6 chars required'); valid = false; }
-
-        if (!valid) return;
-
-        const btn = f.querySelector('button[type="submit"]');
-        const txt = btn.innerText;
-        btn.innerText = "Creating..."; btn.disabled = true;
-
-        try {
-            const res = await fetch(API_URL, {
-                method: 'POST',
-                body: JSON.stringify({
-                    action: 'registerUser',
-                    payload: {
-                        fullName: f.fullName.value,
-                        email: f.email.value.trim(),
-                        phone: f.phone.value,
-                        password: f.password.value
-                    }
-                })
-            }).then(r => r.json());
-
-            if (res.success) {
-                alert('Account Created! Please Login.');
-                switchAuth('login');
-            } else {
-                if (res.message.toLowerCase().includes('email')) showError(f.email, res.message);
-                else showError(f.fullName, res.message);
-            }
-        } catch (e) { showError(f.fullName, "Connection Error"); }
-        btn.innerText = txt; btn.disabled = false;
-    }
-
-    // --- FORGOT PASSWORD ---
-    function openForgotPass() { switchAuth('forgot'); }
-
-    async function handleForgotPass(e) {
-        e.preventDefault();
-        const f = e.target;
-        if (!f.email.value.trim()) { showError(f.email, 'Email is required'); return; }
-
-        const btn = f.querySelector('button');
-        const txt = btn.innerText;
-        btn.innerText = "Sending..."; btn.disabled = true;
-
-        try {
-            const res = await fetch(API_URL, {
-                method: 'POST',
-                body: JSON.stringify({ action: 'forgotPassword', payload: { email: f.email.value.trim() } })
-            }).then(r => r.json());
-
-            if (res.success) {
-                alert("OTP sent to your email (Valid for 15 mins). Check Spam/Inbox.");
-                switchAuth('login');
-            } else {
-                showError(f.email, res.message || "User not found");
-            }
-        } catch (e) { showError(f.email, "Network Error"); }
-        btn.innerText = txt; btn.disabled = false;
-    }
-
-    // --- GRID & DROPS ---
-    function renderProductGrid(products = AppState.products) {
-        const grid = document.getElementById('productGrid');
-        grid.innerHTML = '';
-        const grouped = groupProducts(products);
-        if (grouped.length === 0) {
-            grid.innerHTML = '<div class="col-span-full text-center text-gray-400">No products match.</div>';
-            return;
+        if (res.success) {
+            alert('Account Created! Please Login.');
+            switchAuth('login');
+        } else {
+            if (res.message.toLowerCase().includes('email')) showError(f.email, res.message);
+            else showError(f.fullName, res.message);
         }
-        grouped.forEach(p => grid.appendChild(createProductCard(p)));
-    }
+    } catch (e) { showError(f.fullName, "Connection Error"); }
+    btn.innerText = txt; btn.disabled = false;
+}
 
-    function renderLatestDrops() {
-        const drops = AppState.products.filter(p => p.is_new === true);
-        const sec = document.getElementById('latestDropsSection');
-        if (drops.length === 0) {
-            sec.classList.add('hidden');
-            return;
+// --- FORGOT PASSWORD ---
+function openForgotPass() { switchAuth('forgot'); }
+
+async function handleForgotPass(e) {
+    e.preventDefault();
+    const f = e.target;
+    if (!f.email.value.trim()) { showError(f.email, 'Email is required'); return; }
+
+    const btn = f.querySelector('button');
+    const txt = btn.innerText;
+    btn.innerText = "Sending..."; btn.disabled = true;
+
+    try {
+        const res = await fetch(API_URL, {
+            method: 'POST',
+            body: JSON.stringify({ action: 'forgotPassword', payload: { email: f.email.value.trim() } })
+        }).then(r => r.json());
+
+        if (res.success) {
+            alert("OTP sent to your email (Valid for 15 mins). Check Spam/Inbox.");
+            switchAuth('login');
+        } else {
+            showError(f.email, res.message || "User not found");
         }
-        sec.classList.remove('hidden');
-        const grid = document.getElementById('latestGrid');
-        grid.innerHTML = '';
-        groupProducts(drops).slice(0, 4).forEach(p => grid.appendChild(createProductCard(p)));
+    } catch (e) { showError(f.email, "Network Error"); }
+    btn.innerText = txt; btn.disabled = false;
+}
+
+// --- GRID & DROPS ---
+function renderProductGrid(products = AppState.products) {
+    const grid = document.getElementById('productGrid');
+    grid.innerHTML = '';
+    const grouped = groupProducts(products);
+    if (grouped.length === 0) {
+        grid.innerHTML = '<div class="col-span-full text-center text-gray-400">No products match.</div>';
+        return;
     }
+    grouped.forEach(p => grid.appendChild(createProductCard(p)));
+}
 
-    function groupProducts(list) {
-        const map = {};
-        list.forEach(p => {
-            if (!map[p.parent_code]) map[p.parent_code] = { ...p, variants: [] };
-            map[p.parent_code].variants.push(p);
-        });
-        return Object.values(map);
+function renderLatestDrops() {
+    const drops = AppState.products.filter(p => p.is_new === true);
+    const sec = document.getElementById('latestDropsSection');
+    if (drops.length === 0) {
+        sec.classList.add('hidden');
+        return;
     }
+    sec.classList.remove('hidden');
+    const grid = document.getElementById('latestGrid');
+    grid.innerHTML = '';
+    groupProducts(drops).slice(0, 4).forEach(p => grid.appendChild(createProductCard(p)));
+}
 
-    function createProductCard(p) {
-        const div = document.createElement('div');
-        div.className = "group cursor-pointer";
-        div.onclick = () => openProductModal(p);
+function groupProducts(list) {
+    const map = {};
+    list.forEach(p => {
+        if (!map[p.parent_code]) map[p.parent_code] = { ...p, variants: [] };
+        map[p.parent_code].variants.push(p);
+    });
+    return Object.values(map);
+}
 
-        // Color dots
-        let dots = p.variants.map(v => {
-            // Check stock for this variant (all sizes)
-            const hasStock = AppState.inventory.some(i => i.sub_code === v.sub_code && i.stock_qty > 0);
-            return `<div class="w-3 h-3 rounded-full border border-gray-200 ${hasStock ? '' : 'opacity-30 diagonal-strike'}" style="background-color:${v.color_hex};" title="${v.color_name}${hasStock ? '' : ' (OOS)'}"></div>`;
-        }).join('');
+function createProductCard(p) {
+    const div = document.createElement('div');
+    div.className = "group cursor-pointer";
+    div.onclick = () => openProductModal(p);
 
-        div.innerHTML = `
+    // Color dots
+    let dots = p.variants.map(v => {
+        // Check stock for this variant (all sizes)
+        const hasStock = AppState.inventory.some(i => i.sub_code === v.sub_code && i.stock_qty > 0);
+        return `<div class="w-3 h-3 rounded-full border border-gray-200 ${hasStock ? '' : 'opacity-30 diagonal-strike'}" style="background-color:${v.color_hex};" title="${v.color_name}${hasStock ? '' : ' (OOS)'}"></div>`;
+    }).join('');
+
+    div.innerHTML = `
             <div class="relative w-full aspect-[4/5] bg-gray-100 overflow-hidden mb-4 rounded-sm">
                 <img src="${formatImage(p.main_image_url)}" class="w-full h-full object-cover transition duration-700 group-hover:scale-110">
                 ${p.discount_active ? '<span class="absolute top-2 left-2 bg-red-600 text-white text-[10px] uppercase font-bold px-2 py-1">Sale</span>' : ''}
@@ -500,340 +459,340 @@ function renderProfileFavorites() {
                  <div class="flex gap-1 opacity-80">${dots}</div>
             </div>
         `;
-        return div;
+    return div;
+}
+
+// --- SEARCH ---
+function toggleSearch() {
+    const ol = document.getElementById('searchOverlay');
+    const backdrop = document.getElementById('searchBackdrop');
+    const drawer = document.getElementById('searchDrawer');
+    const input = document.getElementById('searchInput');
+
+    if (ol.classList.contains('hidden')) {
+        // Open
+        ol.classList.remove('hidden');
+        // Force Reflow
+        void ol.offsetWidth;
+
+        backdrop.classList.remove('opacity-0');
+        drawer.classList.remove('-translate-y-full');
+        input.focus();
+    } else {
+        // Close
+        backdrop.classList.add('opacity-0');
+        drawer.classList.add('-translate-y-full');
+        setTimeout(() => ol.classList.add('hidden'), 300);
+    }
+}
+
+function populateFilters() {
+    const uniqueCats = [...new Set(AppState.products.map(p => p.category))];
+    const sel = document.getElementById('filterCategory');
+    sel.innerHTML = '<option value="all">All Categories</option>';
+    uniqueCats.forEach(c => {
+        if (c) {
+            const opt = document.createElement('option');
+            opt.value = c; opt.innerText = c;
+            sel.appendChild(opt);
+        }
+    });
+}
+
+function runSearchOrFilter() {
+    const q = document.getElementById('searchInput').value.toLowerCase();
+    const cat = document.getElementById('filterCategory').value;
+    const price = document.getElementById('filterPrice').value;
+    const stockPos = document.getElementById('filterStock').checked;
+
+    const results = AppState.products.filter(p => {
+        // Include safer checks
+        const matchSearch = !q || p.product_name.toLowerCase().includes(q) || p.color_name.toLowerCase().includes(q) || (p.category && p.category.toLowerCase().includes(q));
+        const matchCat = cat === 'all' || p.category === cat;
+
+        const pVal = p.discount_active ? p.discount_price : p.base_price;
+        let matchPrice = true;
+        if (price === 'under100') matchPrice = pVal < 100;
+        else if (price === '100to300') matchPrice = pVal >= 100 && pVal <= 300;
+        else if (price === 'over300') matchPrice = pVal > 300;
+
+        let matchStock = true;
+        if (stockPos) {
+            matchStock = AppState.inventory.some(i => i.sub_code === p.sub_code && i.stock_qty > 0);
+        }
+        return matchSearch && matchCat && matchPrice && matchStock;
+    });
+
+    // Close Overlay to show results on main grid
+    if (!document.getElementById('searchOverlay').classList.contains('hidden')) {
+        toggleSearch();
     }
 
-    // --- SEARCH ---
-    function toggleSearch() {
-        const ol = document.getElementById('searchOverlay');
-        const backdrop = document.getElementById('searchBackdrop');
-        const drawer = document.getElementById('searchDrawer');
-        const input = document.getElementById('searchInput');
+    // Update Grid Title
+    const titleEl = document.querySelector('main h2');
+    const subTitleEl = document.querySelector('main span.text-brand-accent');
+    const resetBtn = document.getElementById('gridResetBtn');
 
-        if (ol.classList.contains('hidden')) {
-            // Open
-            ol.classList.remove('hidden');
-            // Force Reflow
-            void ol.offsetWidth;
+    if (q || cat !== 'all' || price !== 'all' || stockPos) {
+        if (subTitleEl) subTitleEl.innerText = "Filtered Results";
+        if (titleEl) titleEl.innerHTML = q ? `Search for "<span class='italic'>${q}</span>"` : "Filtered Selection";
+        if (resetBtn) resetBtn.classList.remove('hidden');
+    } else {
+        if (subTitleEl) subTitleEl.innerText = "Collection";
+        if (titleEl) titleEl.innerText = "All Products";
+        if (resetBtn) resetBtn.classList.add('hidden');
+    }
 
-            backdrop.classList.remove('opacity-0');
-            drawer.classList.remove('-translate-y-full');
-            input.focus();
+    renderProductGrid(results);
+    scrollToGrid();
+}
+
+function resetFilters() {
+    document.getElementById('searchInput').value = '';
+    document.getElementById('filterCategory').value = 'all';
+    document.getElementById('filterPrice').value = 'all';
+    document.getElementById('filterStock').checked = false;
+    runSearchOrFilter();
+}
+
+// --- MODAL ---
+let currentGroup = [], currentVar = null, selSize = null;
+let currentGallery = [], galleryIdx = 0;
+
+async function initGallery(varData) {
+    console.log("Initializing Gallery v2.1");
+    const mainImg = formatImage(varData.main_image_url);
+    currentGallery = [mainImg];
+    galleryIdx = 0;
+
+    // Clear & Show Loading
+    renderGalleryUI();
+
+    if (varData.gallery_images) {
+        const raw = varData.gallery_images;
+        // Check if Folder URL or Comma List
+        if (raw.includes('drive.google.com') && (raw.includes('/folders/') || raw.includes('id='))) {
+            // Fetch
+            try {
+                const res = await fetch(`${API_URL}`, {
+                    method: 'POST',
+                    body: JSON.stringify({ action: 'getGalleryImages', payload: { url: raw } })
+                }).then(r => r.json());
+
+                if (res.success && res.images.length > 0) {
+                    // Add fetched images to gallery, filtering duplicates
+                    res.images.forEach(img => {
+                        if (formatImage(img) !== mainImg) currentGallery.push(formatImage(img));
+                    });
+                }
+            } catch (e) { console.warn("Gallery Fetch Fail", e); }
         } else {
-            // Close
-            backdrop.classList.add('opacity-0');
-            drawer.classList.add('-translate-y-full');
-            setTimeout(() => ol.classList.add('hidden'), 300);
+            // Comma List
+            const list = raw.split(',').map(s => formatImage(s.trim())).filter(s => s && s !== mainImg);
+            currentGallery.push(...list);
         }
     }
+    renderGalleryUI();
+}
 
-    function populateFilters() {
-        const uniqueCats = [...new Set(AppState.products.map(p => p.category))];
-        const sel = document.getElementById('filterCategory');
-        sel.innerHTML = '<option value="all">All Categories</option>';
-        uniqueCats.forEach(c => {
-            if (c) {
-                const opt = document.createElement('option');
-                opt.value = c; opt.innerText = c;
-                sel.appendChild(opt);
-            }
-        });
+function renderGalleryUI() {
+    // 1. Update Main Image
+    document.getElementById('modalImg').src = currentGallery[galleryIdx];
+
+    // 2. Nav Buttons
+    const prevBtn = document.getElementById('galleryPrevBtn');
+    const nextBtn = document.getElementById('galleryNextBtn');
+    if (currentGallery.length > 1) {
+        prevBtn.classList.remove('hidden');
+        nextBtn.classList.remove('hidden');
+    } else {
+        prevBtn.classList.add('hidden');
+        nextBtn.classList.add('hidden');
     }
 
-    function runSearchOrFilter() {
-        const q = document.getElementById('searchInput').value.toLowerCase();
-        const cat = document.getElementById('filterCategory').value;
-        const price = document.getElementById('filterPrice').value;
-        const stockPos = document.getElementById('filterStock').checked;
-
-        const results = AppState.products.filter(p => {
-            // Include safer checks
-            const matchSearch = !q || p.product_name.toLowerCase().includes(q) || p.color_name.toLowerCase().includes(q) || (p.category && p.category.toLowerCase().includes(q));
-            const matchCat = cat === 'all' || p.category === cat;
-
-            const pVal = p.discount_active ? p.discount_price : p.base_price;
-            let matchPrice = true;
-            if (price === 'under100') matchPrice = pVal < 100;
-            else if (price === '100to300') matchPrice = pVal >= 100 && pVal <= 300;
-            else if (price === 'over300') matchPrice = pVal > 300;
-
-            let matchStock = true;
-            if (stockPos) {
-                matchStock = AppState.inventory.some(i => i.sub_code === p.sub_code && i.stock_qty > 0);
-            }
-            return matchSearch && matchCat && matchPrice && matchStock;
-        });
-
-        // Close Overlay to show results on main grid
-        if (!document.getElementById('searchOverlay').classList.contains('hidden')) {
-            toggleSearch();
-        }
-
-        // Update Grid Title
-        const titleEl = document.querySelector('main h2');
-        const subTitleEl = document.querySelector('main span.text-brand-accent');
-        const resetBtn = document.getElementById('gridResetBtn');
-
-        if (q || cat !== 'all' || price !== 'all' || stockPos) {
-            if (subTitleEl) subTitleEl.innerText = "Filtered Results";
-            if (titleEl) titleEl.innerHTML = q ? `Search for "<span class='italic'>${q}</span>"` : "Filtered Selection";
-            if (resetBtn) resetBtn.classList.remove('hidden');
-        } else {
-            if (subTitleEl) subTitleEl.innerText = "Collection";
-            if (titleEl) titleEl.innerText = "All Products";
-            if (resetBtn) resetBtn.classList.add('hidden');
-        }
-
-        renderProductGrid(results);
-        scrollToGrid();
-    }
-
-    function resetFilters() {
-        document.getElementById('searchInput').value = '';
-        document.getElementById('filterCategory').value = 'all';
-        document.getElementById('filterPrice').value = 'all';
-        document.getElementById('filterStock').checked = false;
-        runSearchOrFilter();
-    }
-
-    // --- MODAL ---
-    let currentGroup = [], currentVar = null, selSize = null;
-    let currentGallery = [], galleryIdx = 0;
-
-    async function initGallery(varData) {
-        console.log("Initializing Gallery v2.1");
-        const mainImg = formatImage(varData.main_image_url);
-        currentGallery = [mainImg];
-        galleryIdx = 0;
-
-        // Clear & Show Loading
-        renderGalleryUI();
-
-        if (varData.gallery_images) {
-            const raw = varData.gallery_images;
-            // Check if Folder URL or Comma List
-            if (raw.includes('drive.google.com') && (raw.includes('/folders/') || raw.includes('id='))) {
-                // Fetch
-                try {
-                    const res = await fetch(`${API_URL}`, {
-                        method: 'POST',
-                        body: JSON.stringify({ action: 'getGalleryImages', payload: { url: raw } })
-                    }).then(r => r.json());
-
-                    if (res.success && res.images.length > 0) {
-                        // Add fetched images to gallery, filtering duplicates
-                        res.images.forEach(img => {
-                            if (formatImage(img) !== mainImg) currentGallery.push(formatImage(img));
-                        });
-                    }
-                } catch (e) { console.warn("Gallery Fetch Fail", e); }
-            } else {
-                // Comma List
-                const list = raw.split(',').map(s => formatImage(s.trim())).filter(s => s && s !== mainImg);
-                currentGallery.push(...list);
-            }
-        }
-        renderGalleryUI();
-    }
-
-    function renderGalleryUI() {
-        // 1. Update Main Image
-        document.getElementById('modalImg').src = currentGallery[galleryIdx];
-
-        // 2. Nav Buttons
-        const prevBtn = document.getElementById('galleryPrevBtn');
-        const nextBtn = document.getElementById('galleryNextBtn');
-        if (currentGallery.length > 1) {
-            prevBtn.classList.remove('hidden');
-            nextBtn.classList.remove('hidden');
-        } else {
-            prevBtn.classList.add('hidden');
-            nextBtn.classList.add('hidden');
-        }
-
-        // 3. Thumbnails
-        const tDiv = document.getElementById('galleryThumbnails');
-        tDiv.innerHTML = '';
-        if (currentGallery.length > 1) {
-            currentGallery.forEach((img, i) => {
-                const btn = document.createElement('button');
-                btn.className = `w-12 h-16 flex-shrink-0 border-2 rounded overflow-hidden transition ${i === galleryIdx ? 'border-brand-accent scale-105' : 'border-transparent opacity-60 hover:opacity-100'}`;
-                btn.innerHTML = `<img src="${img}" class="w-full h-full object-cover">`;
-                btn.onclick = (e) => { e.stopPropagation(); galleryIdx = i; renderGalleryUI(); };
-                tDiv.appendChild(btn);
-            });
-        }
-    }
-
-    function changeGalleryImage(dir) {
-        galleryIdx = (galleryIdx + dir + currentGallery.length) % currentGallery.length;
-        renderGalleryUI();
-    }
-
-
-    function openProductModal(p) {
-        currentGroup = AppState.products.filter(x => x.parent_code === p.parent_code);
-        selectVariant(p.sub_code);
-        document.getElementById('productModal').classList.remove('hidden');
-        document.getElementById('productModal').classList.add('flex');
-        document.getElementById('addSuccessMsg').classList.add('hidden');
-    }
-    function closeModal() {
-        document.getElementById('productModal').classList.add('hidden');
-        document.getElementById('productModal').classList.remove('flex');
-        selSize = null;
-    }
-
-    function selectVariant(sub) {
-        currentVar = currentGroup.find(x => x.sub_code === sub);
-        document.getElementById('modalImg').src = formatImage(currentVar.main_image_url);
-        document.getElementById('modalTitle').innerText = currentVar.product_name;
-        document.getElementById('modalCategory').innerText = currentVar.category;
-
-        const priceEl = document.getElementById('modalPrice');
-        const oldPriceEl = document.getElementById('modalOldPrice');
-        if (currentVar.discount_active) {
-            priceEl.innerText = `${AppState.currency}${currentVar.discount_price}`;
-            priceEl.className = 'text-xl font-bold text-red-600';
-            oldPriceEl.innerText = `${AppState.currency}${currentVar.base_price}`;
-            oldPriceEl.classList.remove('hidden');
-        } else {
-            priceEl.innerText = `${AppState.currency}${currentVar.base_price}`;
-            priceEl.className = 'text-xl font-bold';
-            oldPriceEl.classList.add('hidden');
-        }
-        document.getElementById('modalDesc').innerText = currentVar.description || '';
-
-        // Init Gallery
-        initGallery(currentVar);
-
-        // Colors
-        const cDiv = document.getElementById('modalColors');
-        cDiv.innerHTML = '';
-        currentGroup.forEach(v => {
-            const b = document.createElement('button');
-            b.className = `w-10 h-10 rounded-full border-2 ${v.sub_code === sub ? 'border-black scale-110' : 'border-transparent'}`;
-            b.style.backgroundColor = v.color_hex;
-            b.onclick = () => { selectVariant(v.sub_code); document.getElementById('addSuccessMsg').classList.add('hidden'); };
-            cDiv.appendChild(b);
-        });
-        document.getElementById('selectedColorName').innerText = currentVar.color_name;
-
-        // Likes (Heart)
-        const heart = document.getElementById('modalLikeBtn').querySelector('i');
-        if (AppState.favorites.includes(sub)) { heart.className = "bi bi-heart-fill"; heart.parentElement.classList.add('text-red-500'); }
-        else { heart.className = "bi bi-heart"; heart.parentElement.classList.remove('text-red-500'); }
-
-        renderSizes();
-    }
-
-    function renderSizes() {
-        const sDiv = document.getElementById('modalSizes');
-        sDiv.innerHTML = '';
-        const order = ['S', 'M', 'L', 'XL', 'XXL', '3XL', '4XL'];
-        const stock = AppState.inventory.filter(i => i.sub_code === currentVar.sub_code);
-
-        order.forEach(sz => {
-            const item = stock.find(i => i.size === sz);
-            const qty = item ? item.stock_qty : 0;
+    // 3. Thumbnails
+    const tDiv = document.getElementById('galleryThumbnails');
+    tDiv.innerHTML = '';
+    if (currentGallery.length > 1) {
+        currentGallery.forEach((img, i) => {
             const btn = document.createElement('button');
-            btn.innerText = sz;
-            btn.disabled = qty <= 0;
-            // Style logic
-            if (qty > 0) {
-                btn.className = "py-3 rounded border text-sm font-semibold hover:border-black hover:bg-black hover:text-white transition";
-                btn.onclick = () => {
-                    // Clear selection
-                    Array.from(sDiv.children).forEach(c => { if (!c.disabled) c.className = "py-3 rounded border text-sm font-semibold hover:border-black hover:bg-black hover:text-white transition"; });
-                    btn.className = "py-3 rounded border text-sm font-semibold bg-black text-white border-black shadow-md";
-
-                    selSize = { size: sz, sku: item.sku_id, max: qty };
-                    const addBtn = document.getElementById('addToCartBtn');
-                    addBtn.disabled = false;
-                    addBtn.className = "w-full py-4 bg-black text-white font-bold rounded-lg transition-all text-sm uppercase hover:scale-[1.01] shadow-lg";
-                    addBtn.innerText = `Add - ${AppState.currency}${currentVar.discount_active ? currentVar.discount_price : currentVar.base_price}`;
-                };
-            } else {
-                btn.className = "py-3 rounded border text-sm font-semibold bg-gray-50 text-gray-300 cursor-not-allowed";
-            }
-            sDiv.appendChild(btn);
+            btn.className = `w-12 h-16 flex-shrink-0 border-2 rounded overflow-hidden transition ${i === galleryIdx ? 'border-brand-accent scale-105' : 'border-transparent opacity-60 hover:opacity-100'}`;
+            btn.innerHTML = `<img src="${img}" class="w-full h-full object-cover">`;
+            btn.onclick = (e) => { e.stopPropagation(); galleryIdx = i; renderGalleryUI(); };
+            tDiv.appendChild(btn);
         });
-
-        // Reset Add
-        const addBtn = document.getElementById('addToCartBtn');
-        addBtn.disabled = true;
-        addBtn.innerText = "Select Size";
-        addBtn.className = "w-full py-4 bg-gray-200 text-gray-400 font-bold rounded-lg transition-all text-sm uppercase cursor-not-allowed";
-        selSize = null;
     }
+}
 
-    function addToCartFromModal() {
-        if (!selSize || !currentVar) return;
-        const item = {
-            sku: selSize.sku,
-            parent_code: currentVar.parent_code,
-            product_name: currentVar.product_name,
-            image: currentVar.main_image_url,
-            color: currentVar.color_name,
-            size: selSize.size,
-            price: currentVar.discount_active ? currentVar.discount_price : currentVar.base_price,
-            maxQty: selSize.max,
-            qty: 1
-        };
-        const exist = AppState.cart.find(c => c.sku === item.sku);
-        if (exist) {
-            if (exist.qty < exist.maxQty) exist.qty++; else alert("Max stock reached.");
+function changeGalleryImage(dir) {
+    galleryIdx = (galleryIdx + dir + currentGallery.length) % currentGallery.length;
+    renderGalleryUI();
+}
+
+
+function openProductModal(p) {
+    currentGroup = AppState.products.filter(x => x.parent_code === p.parent_code);
+    selectVariant(p.sub_code);
+    document.getElementById('productModal').classList.remove('hidden');
+    document.getElementById('productModal').classList.add('flex');
+    document.getElementById('addSuccessMsg').classList.add('hidden');
+}
+function closeModal() {
+    document.getElementById('productModal').classList.add('hidden');
+    document.getElementById('productModal').classList.remove('flex');
+    selSize = null;
+}
+
+function selectVariant(sub) {
+    currentVar = currentGroup.find(x => x.sub_code === sub);
+    document.getElementById('modalImg').src = formatImage(currentVar.main_image_url);
+    document.getElementById('modalTitle').innerText = currentVar.product_name;
+    document.getElementById('modalCategory').innerText = currentVar.category;
+
+    const priceEl = document.getElementById('modalPrice');
+    const oldPriceEl = document.getElementById('modalOldPrice');
+    if (currentVar.discount_active) {
+        priceEl.innerText = `${AppState.currency}${currentVar.discount_price}`;
+        priceEl.className = 'text-xl font-bold text-red-600';
+        oldPriceEl.innerText = `${AppState.currency}${currentVar.base_price}`;
+        oldPriceEl.classList.remove('hidden');
+    } else {
+        priceEl.innerText = `${AppState.currency}${currentVar.base_price}`;
+        priceEl.className = 'text-xl font-bold';
+        oldPriceEl.classList.add('hidden');
+    }
+    document.getElementById('modalDesc').innerText = currentVar.description || '';
+
+    // Init Gallery
+    initGallery(currentVar);
+
+    // Colors
+    const cDiv = document.getElementById('modalColors');
+    cDiv.innerHTML = '';
+    currentGroup.forEach(v => {
+        const b = document.createElement('button');
+        b.className = `w-10 h-10 rounded-full border-2 ${v.sub_code === sub ? 'border-black scale-110' : 'border-transparent'}`;
+        b.style.backgroundColor = v.color_hex;
+        b.onclick = () => { selectVariant(v.sub_code); document.getElementById('addSuccessMsg').classList.add('hidden'); };
+        cDiv.appendChild(b);
+    });
+    document.getElementById('selectedColorName').innerText = currentVar.color_name;
+
+    // Likes (Heart)
+    const heart = document.getElementById('modalLikeBtn').querySelector('i');
+    if (AppState.favorites.includes(sub)) { heart.className = "bi bi-heart-fill"; heart.parentElement.classList.add('text-red-500'); }
+    else { heart.className = "bi bi-heart"; heart.parentElement.classList.remove('text-red-500'); }
+
+    renderSizes();
+}
+
+function renderSizes() {
+    const sDiv = document.getElementById('modalSizes');
+    sDiv.innerHTML = '';
+    const order = ['S', 'M', 'L', 'XL', 'XXL', '3XL', '4XL'];
+    const stock = AppState.inventory.filter(i => i.sub_code === currentVar.sub_code);
+
+    order.forEach(sz => {
+        const item = stock.find(i => i.size === sz);
+        const qty = item ? item.stock_qty : 0;
+        const btn = document.createElement('button');
+        btn.innerText = sz;
+        btn.disabled = qty <= 0;
+        // Style logic
+        if (qty > 0) {
+            btn.className = "py-3 rounded border text-sm font-semibold hover:border-black hover:bg-black hover:text-white transition";
+            btn.onclick = () => {
+                // Clear selection
+                Array.from(sDiv.children).forEach(c => { if (!c.disabled) c.className = "py-3 rounded border text-sm font-semibold hover:border-black hover:bg-black hover:text-white transition"; });
+                btn.className = "py-3 rounded border text-sm font-semibold bg-black text-white border-black shadow-md";
+
+                selSize = { size: sz, sku: item.sku_id, max: qty };
+                const addBtn = document.getElementById('addToCartBtn');
+                addBtn.disabled = false;
+                addBtn.className = "w-full py-4 bg-black text-white font-bold rounded-lg transition-all text-sm uppercase hover:scale-[1.01] shadow-lg";
+                addBtn.innerText = `Add - ${AppState.currency}${currentVar.discount_active ? currentVar.discount_price : currentVar.base_price}`;
+            };
         } else {
-            AppState.cart.push(item);
+            btn.className = "py-3 rounded border text-sm font-semibold bg-gray-50 text-gray-300 cursor-not-allowed";
         }
-        saveCart();
+        sDiv.appendChild(btn);
+    });
 
-        // Auto-open Cart Drawer
-        const drawer = document.getElementById('cartDrawer');
-        if (drawer && drawer.classList.contains('translate-x-full')) {
-            toggleCart();
-        }
+    // Reset Add
+    const addBtn = document.getElementById('addToCartBtn');
+    addBtn.disabled = true;
+    addBtn.innerText = "Select Size";
+    addBtn.className = "w-full py-4 bg-gray-200 text-gray-400 font-bold rounded-lg transition-all text-sm uppercase cursor-not-allowed";
+    selSize = null;
+}
 
-        document.getElementById('addSuccessMsg').classList.remove('hidden');
-        setTimeout(() => document.getElementById('addSuccessMsg').classList.add('hidden'), 3000);
+function addToCartFromModal() {
+    if (!selSize || !currentVar) return;
+    const item = {
+        sku: selSize.sku,
+        parent_code: currentVar.parent_code,
+        product_name: currentVar.product_name,
+        image: currentVar.main_image_url,
+        color: currentVar.color_name,
+        size: selSize.size,
+        price: currentVar.discount_active ? currentVar.discount_price : currentVar.base_price,
+        maxQty: selSize.max,
+        qty: 1
+    };
+    const exist = AppState.cart.find(c => c.sku === item.sku);
+    if (exist) {
+        if (exist.qty < exist.maxQty) exist.qty++; else alert("Max stock reached.");
+    } else {
+        AppState.cart.push(item);
+    }
+    saveCart();
+
+    // Auto-open Cart Drawer
+    const drawer = document.getElementById('cartDrawer');
+    if (drawer && drawer.classList.contains('translate-x-full')) {
+        toggleCart();
     }
 
-    // --- LIKES ---
-    async function fetchLikes() {
-        try {
-            const res = await fetch(`${API_URL}`, { method: 'POST', body: JSON.stringify({ action: 'getLikes', payload: { email: AppState.user.email } }) }).then(r => r.json());
-            if (res.success) AppState.favorites = res.likes;
-        } catch (e) { }
+    document.getElementById('addSuccessMsg').classList.remove('hidden');
+    setTimeout(() => document.getElementById('addSuccessMsg').classList.add('hidden'), 3000);
+}
+
+// --- LIKES ---
+async function fetchLikes() {
+    try {
+        const res = await fetch(`${API_URL}`, { method: 'POST', body: JSON.stringify({ action: 'getLikes', payload: { email: AppState.user.email } }) }).then(r => r.json());
+        if (res.success) AppState.favorites = res.likes;
+    } catch (e) { }
+}
+
+async function toggleLikeFromModal() {
+    if (!currentVar) return;
+    if (!AppState.user) { openAuth(); return; }
+    const sub = currentVar.sub_code;
+    const heart = document.getElementById('modalLikeBtn').querySelector('i');
+
+    if (AppState.favorites.includes(sub)) {
+        AppState.favorites = AppState.favorites.filter(x => x !== sub);
+        heart.className = "bi bi-heart"; heart.parentElement.classList.remove('text-red-500');
+    } else {
+        AppState.favorites.push(sub);
+        heart.className = "bi bi-heart-fill"; heart.parentElement.classList.add('text-red-500');
     }
+    // Async update
+    await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'toggleLike', payload: { email: AppState.user.email, productSubCode: sub } }) });
+}
 
-    async function toggleLikeFromModal() {
-        if (!currentVar) return;
-        if (!AppState.user) { openAuth(); return; }
-        const sub = currentVar.sub_code;
-        const heart = document.getElementById('modalLikeBtn').querySelector('i');
-
-        if (AppState.favorites.includes(sub)) {
-            AppState.favorites = AppState.favorites.filter(x => x !== sub);
-            heart.className = "bi bi-heart"; heart.parentElement.classList.remove('text-red-500');
-        } else {
-            AppState.favorites.push(sub);
-            heart.className = "bi bi-heart-fill"; heart.parentElement.classList.add('text-red-500');
-        }
-        // Async update
-        await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'toggleLike', payload: { email: AppState.user.email, productSubCode: sub } }) });
-    }
-
-    // --- CART ---
-    function saveCart() { localStorage.setItem('faym_cart', JSON.stringify(AppState.cart)); renderCartCount(); renderCartDrawer(); }
-    function renderCartCount() { document.getElementById('cartCount').innerText = AppState.cart.reduce((a, b) => a + b.qty, 0); document.getElementById('cartCount').classList.toggle('opacity-0', AppState.cart.length === 0); }
-    function renderCartDrawer() {
-        const div = document.getElementById('cartItems'); div.innerHTML = '';
-        let tot = 0;
-        if (AppState.cart.length === 0) div.innerHTML = "<div class='text-center text-gray-500 mt-10'>Cart is empty.</div>";
-        else {
-            AppState.cart.forEach((c, i) => {
-                tot += c.price * c.qty;
-                div.innerHTML += `
+// --- CART ---
+function saveCart() { localStorage.setItem('faym_cart', JSON.stringify(AppState.cart)); renderCartCount(); renderCartDrawer(); }
+function renderCartCount() { document.getElementById('cartCount').innerText = AppState.cart.reduce((a, b) => a + b.qty, 0); document.getElementById('cartCount').classList.toggle('opacity-0', AppState.cart.length === 0); }
+function renderCartDrawer() {
+    const div = document.getElementById('cartItems'); div.innerHTML = '';
+    let tot = 0;
+    if (AppState.cart.length === 0) div.innerHTML = "<div class='text-center text-gray-500 mt-10'>Cart is empty.</div>";
+    else {
+        AppState.cart.forEach((c, i) => {
+            tot += c.price * c.qty;
+            div.innerHTML += `
                     <div class="flex gap-4">
                         <img src="${formatImage(c.image)}" class="w-16 h-20 object-cover rounded bg-gray-100">
                         <div class="flex-1">
@@ -846,40 +805,40 @@ function renderProfileFavorites() {
                         </div>
                         <button onclick="rmCart(${i})" class="text-gray-400 hover:text-red-500"><i class="bi bi-trash"></i></button>
                     </div>`;
-            });
-        }
-        document.getElementById('cartSubtotal').innerText = AppState.currency + tot;
+        });
     }
-    function updCart(i, d) {
-        const c = AppState.cart[i];
-        if (c.qty + d > 0 && c.qty + d <= c.maxQty) { c.qty += d; saveCart(); }
+    document.getElementById('cartSubtotal').innerText = AppState.currency + tot;
+}
+function updCart(i, d) {
+    const c = AppState.cart[i];
+    if (c.qty + d > 0 && c.qty + d <= c.maxQty) { c.qty += d; saveCart(); }
+}
+function rmCart(i) {
+    // Removed native confirm for better UX
+    AppState.cart.splice(i, 1);
+    saveCart();
+}
+
+// --- CHECKOUT LOGIC ---
+let deliveryMethod = 'delivery'; // 'delivery' or 'pickup'
+let deliveryFee = 0;
+let map, autocomplete;
+let userDistanceKm = 0;
+
+function checkout() {
+    if (AppState.cart.length === 0) {
+        alert("Your cart is empty.");
+        return;
     }
-    function rmCart(i) {
-        // Removed native confirm for better UX
-        AppState.cart.splice(i, 1);
-        saveCart();
+    // Auto-fill User Data
+    if (AppState.user) {
+        document.getElementById('chkName').value = AppState.user.fullName || '';
+        document.getElementById('chkPhone').value = AppState.user.phone || '';
     }
 
-    // --- CHECKOUT LOGIC ---
-    let deliveryMethod = 'delivery'; // 'delivery' or 'pickup'
-    let deliveryFee = 0;
-    let map, autocomplete;
-    let userDistanceKm = 0;
-
-    function checkout() {
-        if (AppState.cart.length === 0) {
-            alert("Your cart is empty.");
-            return;
-        }
-        // Auto-fill User Data
-        if (AppState.user) {
-            document.getElementById('chkName').value = AppState.user.fullName || '';
-            document.getElementById('chkPhone').value = AppState.user.phone || '';
-        }
-
-        // Render Summary Items
-        const cDiv = document.getElementById('chkItems');
-        cDiv.innerHTML = AppState.cart.map(item => `
+    // Render Summary Items
+    const cDiv = document.getElementById('chkItems');
+    cDiv.innerHTML = AppState.cart.map(item => `
         <div class="flex gap-3 text-sm">
              <img src="${formatImage(item.image)}" class="w-12 h-16 object-cover rounded border">
              <div class="flex-1">
@@ -890,35 +849,35 @@ function renderProfileFavorites() {
         </div>
     `).join('');
 
-        // Set Dates (5 - 14 Days)
-        const options = { month: 'short', day: 'numeric' };
-        const dateStart = new Date(); dateStart.setDate(dateStart.getDate() + 5);
-        const dateEnd = new Date(); dateEnd.setDate(dateEnd.getDate() + 14);
-        document.getElementById('chkEstDate').innerText = `${dateStart.toLocaleDateString(undefined, options)} - ${dateEnd.toLocaleDateString(undefined, options)}`;
+    // Set Dates (5 - 14 Days)
+    const options = { month: 'short', day: 'numeric' };
+    const dateStart = new Date(); dateStart.setDate(dateStart.getDate() + 5);
+    const dateEnd = new Date(); dateEnd.setDate(dateEnd.getDate() + 14);
+    document.getElementById('chkEstDate').innerText = `${dateStart.toLocaleDateString(undefined, options)} - ${dateEnd.toLocaleDateString(undefined, options)}`;
 
-        // Init Dropdowns if needed
-        if (deliveryMethod === 'delivery') initZoneDropdowns();
+    // Init Dropdowns if needed
+    if (deliveryMethod === 'delivery') initZoneDropdowns();
 
-        updateCheckoutTotals();
+    updateCheckoutTotals();
 
-        document.getElementById('checkoutModal').classList.remove('hidden');
-        document.getElementById('checkoutModal').classList.add('flex');
+    document.getElementById('checkoutModal').classList.remove('hidden');
+    document.getElementById('checkoutModal').classList.add('flex');
+}
+
+function checkout_OLD() {
+    if (AppState.cart.length === 0) {
+        alert("Your cart is empty.");
+        return;
+    }
+    // Auto-fill User Data
+    if (AppState.user) {
+        document.getElementById('chkName').value = AppState.user.fullName || '';
+        document.getElementById('chkPhone').value = AppState.user.phone || '';
     }
 
-    function checkout_OLD() {
-        if (AppState.cart.length === 0) {
-            alert("Your cart is empty.");
-            return;
-        }
-        // Auto-fill User Data
-        if (AppState.user) {
-            document.getElementById('chkName').value = AppState.user.fullName || '';
-            document.getElementById('chkPhone').value = AppState.user.phone || '';
-        }
-
-        // Render Summary Items
-        const cDiv = document.getElementById('chkItems');
-        cDiv.innerHTML = AppState.cart.map(item => `
+    // Render Summary Items
+    const cDiv = document.getElementById('chkItems');
+    cDiv.innerHTML = AppState.cart.map(item => `
         <div class="flex gap-3 text-sm">
              <img src="${formatImage(item.image)}" class="w-12 h-16 object-cover rounded border">
              <div class="flex-1">
@@ -929,437 +888,415 @@ function renderProfileFavorites() {
         </div>
     `).join('');
 
-        // Set Dates (5 - 14 Days)
-        const options = { month: 'short', day: 'numeric' };
-        const dateStart = new Date(); dateStart.setDate(dateStart.getDate() + 5);
-        const dateEnd = new Date(); dateEnd.setDate(dateEnd.getDate() + 14);
-        document.getElementById('chkEstDate').innerText = `${dateStart.toLocaleDateString(undefined, options)} - ${dateEnd.toLocaleDateString(undefined, options)}`;
+    // Set Dates (5 - 14 Days)
+    const options = { month: 'short', day: 'numeric' };
+    const dateStart = new Date(); dateStart.setDate(dateStart.getDate() + 5);
+    const dateEnd = new Date(); dateEnd.setDate(dateEnd.getDate() + 14);
+    document.getElementById('chkEstDate').innerText = `${dateStart.toLocaleDateString(undefined, options)} - ${dateEnd.toLocaleDateString(undefined, options)}`;
 
-        // Init Map if needed
-        if (deliveryMethod === 'delivery' && !map) initMap();
+    // Init Map if needed
+    if (deliveryMethod === 'delivery' && !map) initMap();
 
-        updateCheckoutTotals();
+    updateCheckoutTotals();
 
-        document.getElementById('checkoutModal').classList.remove('hidden');
-        document.getElementById('checkoutModal').classList.add('flex');
-    }
+    document.getElementById('checkoutModal').classList.remove('hidden');
+    document.getElementById('checkoutModal').classList.add('flex');
+}
 
-    function closeCheckout() {
-        document.getElementById('checkoutModal').classList.add('hidden');
-        document.getElementById('checkoutModal').classList.remove('flex');
-    }
+function closeCheckout() {
+    document.getElementById('checkoutModal').classList.add('hidden');
+    document.getElementById('checkoutModal').classList.remove('flex');
+}
 
-    function setDeliveryMethod(method) {
-        deliveryMethod = method;
+function setDeliveryMethod(method) {
+    deliveryMethod = method;
 
-        const tabDel = document.getElementById('tabDelivery');
-        const tabPick = document.getElementById('tabPickup');
-        const paneDel = document.getElementById('paneDelivery');
-        const panePick = document.getElementById('panePickup');
+    const tabDel = document.getElementById('tabDelivery');
+    const tabPick = document.getElementById('tabPickup');
+    const paneDel = document.getElementById('paneDelivery');
+    const panePick = document.getElementById('panePickup');
 
-        if (method === 'delivery') {
-            tabDel.className = "pb-2 text-lg font-bold border-b-2 border-black transition";
-            tabDel.classList.remove('text-gray-400');
-            tabPick.className = "pb-2 text-lg font-bold text-gray-400 border-b-2 border-transparent hover:text-gray-600 transition";
-            paneDel.classList.remove('hidden');
-            panePick.classList.add('hidden');
-            initZoneDropdowns();
-        } else {
-            tabPick.className = "pb-2 text-lg font-bold border-b-2 border-black transition";
-            tabPick.classList.remove('text-gray-400');
-            tabDel.className = "pb-2 text-lg font-bold text-gray-400 border-b-2 border-transparent hover:text-gray-600 transition";
-            panePick.classList.remove('hidden');
-            paneDel.classList.add('hidden');
-            deliveryFee = 0; // Reset for pickup
-            updateCheckoutTotals();
-        }
+    if (method === 'delivery') {
+        tabDel.className = "pb-2 text-lg font-bold border-b-2 border-black transition";
+        tabDel.classList.remove('text-gray-400');
+        tabPick.className = "pb-2 text-lg font-bold text-gray-400 border-b-2 border-transparent hover:text-gray-600 transition";
+        paneDel.classList.remove('hidden');
+        panePick.classList.add('hidden');
+        initZoneDropdowns();
+    } else {
+        tabPick.className = "pb-2 text-lg font-bold border-b-2 border-black transition";
+        tabPick.classList.remove('text-gray-400');
+        tabDel.className = "pb-2 text-lg font-bold text-gray-400 border-b-2 border-transparent hover:text-gray-600 transition";
+        panePick.classList.remove('hidden');
+        paneDel.classList.add('hidden');
+        deliveryFee = 0; // Reset for pickup
         updateCheckoutTotals();
     }
+    updateCheckoutTotals();
+}
 
-    function setDeliveryMethod_OLD(method) {
-        deliveryMethod = method;
+function setDeliveryMethod_OLD(method) {
+    deliveryMethod = method;
 
-        const tabDel = document.getElementById('tabDelivery');
-        const tabPick = document.getElementById('tabPickup');
-        const paneDel = document.getElementById('paneDelivery');
-        const panePick = document.getElementById('panePickup');
+    const tabDel = document.getElementById('tabDelivery');
+    const tabPick = document.getElementById('tabPickup');
+    const paneDel = document.getElementById('paneDelivery');
+    const panePick = document.getElementById('panePickup');
 
-        if (method === 'delivery') {
-            tabDel.className = "pb-2 text-lg font-bold border-b-2 border-black transition";
-            tabDel.classList.remove('text-gray-400');
-            tabPick.className = "pb-2 text-lg font-bold text-gray-400 border-b-2 border-transparent hover:text-gray-600 transition";
-            paneDel.classList.remove('hidden');
-            panePick.classList.add('hidden');
-            if (!map) initMap();
-        } else {
-            tabPick.className = "pb-2 text-lg font-bold border-b-2 border-black transition";
-            tabPick.classList.remove('text-gray-400');
-            tabDel.className = "pb-2 text-lg font-bold text-gray-400 border-b-2 border-transparent hover:text-gray-600 transition";
-            panePick.classList.remove('hidden');
-            paneDel.classList.add('hidden');
+    if (method === 'delivery') {
+        tabDel.className = "pb-2 text-lg font-bold border-b-2 border-black transition";
+        tabDel.classList.remove('text-gray-400');
+        tabPick.className = "pb-2 text-lg font-bold text-gray-400 border-b-2 border-transparent hover:text-gray-600 transition";
+        paneDel.classList.remove('hidden');
+        panePick.classList.add('hidden');
+        if (!map) initMap();
+    } else {
+        tabPick.className = "pb-2 text-lg font-bold border-b-2 border-black transition";
+        tabPick.classList.remove('text-gray-400');
+        tabDel.className = "pb-2 text-lg font-bold text-gray-400 border-b-2 border-transparent hover:text-gray-600 transition";
+        panePick.classList.remove('hidden');
+        paneDel.classList.add('hidden');
+    }
+    updateCheckoutTotals();
+}
+
+// --- ZONE LOGIC ---
+// --- ZONE LOGIC ---
+function initZoneDropdowns() {
+    const locs = AppState.locations || [];
+    if (locs.length === 0) { console.warn("No Location Data"); return; }
+    const regSel = document.getElementById('chkRegion');
+    // Use l.Region
+    const uniqueRegions = [...new Set(locs.map(l => l.Region))].filter(r => r && r !== "Region");
+    regSel.innerHTML = '<option value="">Select Region</option>';
+    uniqueRegions.forEach(r => {
+        const opt = document.createElement('option');
+        opt.value = r; opt.innerText = r;
+        regSel.appendChild(opt);
+    });
+    document.getElementById('chkTown').innerHTML = '<option value="">Select Town first</option>';
+    document.getElementById('chkArea').innerHTML = '<option value="">Select Area first</option>';
+}
+
+function onRegionChange() {
+    const reg = document.getElementById('chkRegion').value;
+    const townSel = document.getElementById('chkTown');
+    townSel.innerHTML = '<option value="">Select Town/City</option>';
+    document.getElementById('chkArea').innerHTML = '<option value="">Select Area first</option>';
+    if (!reg) return;
+    const locs = AppState.locations.filter(l => l.Region === reg);
+    // Use l.Town_City
+    const uniqueTowns = [...new Set(locs.map(l => l.Town_City))];
+    uniqueTowns.forEach(t => {
+        const opt = document.createElement('option');
+        opt.value = t; opt.innerText = t;
+        townSel.appendChild(opt);
+    });
+}
+
+function onTownChange() {
+    const reg = document.getElementById('chkRegion').value;
+    const town = document.getElementById('chkTown').value;
+    const areaSel = document.getElementById('chkArea');
+    areaSel.innerHTML = '<option value="">Select Area/Locality</option>';
+    if (!town) return;
+    // Use l.Town_City
+    const locs = AppState.locations.filter(l => l.Region === reg && l.Town_City === town);
+    locs.forEach(l => {
+        const opt = document.createElement('option');
+        const price = l.Delivery_Price; // Use l.Delivery_Price
+        const areaName = l.Area_Locality; // Use l.Area_Locality
+        opt.value = `${areaName}|${price}`;
+        opt.innerText = `${areaName} (GH₵${price})`;
+        areaSel.appendChild(opt);
+    });
+}
+
+function onAreaChange() {
+    const val = document.getElementById('chkArea').value;
+    if (val) {
+        const [area, price] = val.split('|');
+        deliveryFee = Number(price);
+    } else {
+        deliveryFee = 0;
+    }
+    updateCheckoutTotals();
+}
+
+function updateCheckoutTotals() {
+    const subtotal = AppState.cart.reduce((sum, i) => sum + (i.price * i.qty), 0);
+    const fee = deliveryMethod === 'delivery' ? deliveryFee : 0;
+    const total = subtotal + fee;
+    document.getElementById('chkSubtotal').innerText = `${AppState.currency}${subtotal}`;
+    document.getElementById('chkDeliveryFee').innerText = fee > 0 ? `${AppState.currency}${fee}` : 'Free';
+    document.getElementById('chkTotal').innerText = `${AppState.currency}${total}`;
+    document.getElementById('payBtn').innerHTML = `<i class="bi bi-credit-card"></i> <span>Pay Now ${AppState.currency}${total}</span>`;
+
+    if (deliveryMethod === 'delivery' && fee > 0) {
+        const area = document.getElementById('chkArea');
+        const areaName = area.options[area.selectedIndex]?.innerText?.split('(')[0] || '';
+        document.getElementById('chkDistanceInfo').innerText = `Delivery to: ${areaName}`;
+    } else {
+        document.getElementById('chkDistanceInfo').innerText = '';
+    }
+}
+/*
+function initMap() {
+    const key = AppState.config['GOOGLE_MAPS_API_KEY'];
+    if (!key) {
+        document.getElementById('checkoutMap').innerHTML = `<div class='p-4 text-center text-red-500'>Google Maps API Key Missing.<br>Please contact admin.</div>`;
+        return;
+    }
+ 
+    // Check if script already loaded
+    if (window.google && window.google.maps) {
+        loadMapComponents();
+        return;
+    }
+ 
+    // Load Script Dynamically
+    const script = document.createElement("script");
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${key}&libraries=places,geometry&callback=loadMapComponents`;
+    script.async = true;
+    script.defer = true;
+    document.head.appendChild(script);
+}
+ 
+window.loadMapComponents = function () {
+    const storeLoc = AppState.config['STORE_LATLNG'] || "5.6037,-0.1870"; // Default Accra
+    const [lat, lng] = storeLoc.split(',').map(Number);
+    const storePosition = { lat, lng };
+ 
+    if (!document.getElementById("checkoutMap")) return;
+ 
+    map = new google.maps.Map(document.getElementById("checkoutMap"), {
+        center: storePosition,
+        zoom: 12,
+        mapTypeControl: false,
+        streetViewControl: false
+    });
+ 
+    // Marker for Store
+    new google.maps.Marker({ position: storePosition, map, icon: 'http://maps.google.com/mapfiles/ms/icons/blue-dot.png', title: "FAYM Store" });
+ 
+    // Autocomplete
+    const input = document.getElementById("chkAddress");
+    autocomplete = new google.maps.places.Autocomplete(input);
+    autocomplete.bindTo("bounds", map);
+    autocomplete.addListener("place_changed", () => {
+        const place = autocomplete.getPlace();
+        if (!place.geometry || !place.geometry.location) return;
+ 
+        // Show on Map
+        if (place.geometry.viewport) map.fitBounds(place.geometry.viewport);
+        else {
+            map.setCenter(place.geometry.location);
+            map.setZoom(15);
         }
+        new google.maps.Marker({ position: place.geometry.location, map });
+ 
+        // Calculate Distance
+        const distMeters = google.maps.geometry.spherical.computeDistanceBetween(
+            new google.maps.LatLng(storePosition),
+            place.geometry.location
+        );
+        userDistanceKm = distMeters / 1000;
+ 
+        // Calculate Fee
+        const base = Number(AppState.config['DELIVERY_BASE_FEE'] || 20);
+        const rate = Number(AppState.config['DELIVERY_PER_KM'] || 5);
+        deliveryFee = Math.ceil(base + (userDistanceKm * rate));
+ 
         updateCheckoutTotals();
+    });
+}
+ 
+function updateCheckoutTotals() {
+    const subtotal = AppState.cart.reduce((sum, i) => sum + (i.price * i.qty), 0);
+    const fee = deliveryMethod === 'delivery' ? deliveryFee : 0;
+    const total = subtotal + fee;
+ 
+    document.getElementById('chkSubtotal').innerText = `${AppState.currency}${subtotal}`;
+    document.getElementById('chkDeliveryFee').innerText = fee > 0 ? `${AppState.currency}${fee}` : 'Free';
+    document.getElementById('chkTotal').innerText = `${AppState.currency}${total}`;
+    document.getElementById('payBtn').innerHTML = `<i class="bi bi-credit-card"></i> <span>Pay Now ${AppState.currency}${total}</span>`;
+ 
+    if (deliveryMethod === 'delivery' && fee > 0) {
+        document.getElementById('chkDistanceInfo').innerText = `Distance: ${userDistanceKm.toFixed(1)} km`;
+    } else {
+        document.getElementById('chkDistanceInfo').innerText = '';
+    }
+}
+ 
+*/
+// --- PAYSTACK PAYMENT ---
+function processPayment() {
+    if (!AppState.user) {
+        alert("Please login to proceed.");
+        return;
     }
 
-    // --- ZONE LOGIC ---
-    // --- ZONE LOGIC ---
-    function initZoneDropdowns() {
-        const locs = AppState.locations || [];
-        if (locs.length === 0) { console.warn("No Location Data"); return; }
-        const regSel = document.getElementById('chkRegion');
-        // Use l.Region
-        const uniqueRegions = [...new Set(locs.map(l => l.Region))].filter(r => r && r !== "Region");
-        regSel.innerHTML = '<option value="">Select Region</option>';
-        uniqueRegions.forEach(r => {
-            const opt = document.createElement('option');
-            opt.value = r; opt.innerText = r;
-            regSel.appendChild(opt);
-        });
-        document.getElementById('chkTown').innerHTML = '<option value="">Select Town first</option>';
-        document.getElementById('chkArea').innerHTML = '<option value="">Select Area first</option>';
+    const name = document.getElementById('chkName').value;
+    const phone = document.getElementById('chkPhone').value;
+    const address = deliveryMethod === 'delivery' ? document.getElementById('chkAddress').value : "Store Pickup";
+
+    if (!name || !phone || (deliveryMethod === 'delivery' && !address)) {
+        alert("Please complete all fields.");
+        return;
     }
 
-    function onRegionChange() {
-        const reg = document.getElementById('chkRegion').value;
-        const townSel = document.getElementById('chkTown');
-        townSel.innerHTML = '<option value="">Select Town/City</option>';
-        document.getElementById('chkArea').innerHTML = '<option value="">Select Area first</option>';
-        if (!reg) return;
-        const locs = AppState.locations.filter(l => l.Region === reg);
-        // Use l.Town_City
-        const uniqueTowns = [...new Set(locs.map(l => l.Town_City))];
-        uniqueTowns.forEach(t => {
-            const opt = document.createElement('option');
-            opt.value = t; opt.innerText = t;
-            townSel.appendChild(opt);
-        });
-    }
+    const subtotal = AppState.cart.reduce((sum, i) => sum + (i.price * i.qty), 0);
+    const fee = deliveryMethod === 'delivery' ? deliveryFee : 0;
+    const total = subtotal + fee;
 
-    function onTownChange() {
-        const reg = document.getElementById('chkRegion').value;
-        const town = document.getElementById('chkTown').value;
-        const areaSel = document.getElementById('chkArea');
-        areaSel.innerHTML = '<option value="">Select Area/Locality</option>';
-        if (!town) return;
-        // Use l.Town_City
-        const locs = AppState.locations.filter(l => l.Region === reg && l.Town_City === town);
-        locs.forEach(l => {
-            const opt = document.createElement('option');
-            const price = l.Delivery_Price; // Use l.Delivery_Price
-            const areaName = l.Area_Locality; // Use l.Area_Locality
-            opt.value = `${areaName}|${price}`;
-            opt.innerText = `${areaName} (GH₵${price})`;
-            areaSel.appendChild(opt);
-        });
-    }
+    // Open Paystack
+    const paystackKey = AppState.config['PAYSTACK_PUBLIC_KEY'];
 
-    function onAreaChange() {
-        const val = document.getElementById('chkArea').value;
-        if (val) {
-            const [area, price] = val.split('|');
-            deliveryFee = Number(price);
-        } else {
-            deliveryFee = 0;
-        }
-        updateCheckoutTotals();
-    }
-
-    function updateCheckoutTotals() {
-        const subtotal = AppState.cart.reduce((sum, i) => sum + (i.price * i.qty), 0);
-        const fee = deliveryMethod === 'delivery' ? deliveryFee : 0;
-        const total = subtotal + fee;
-        document.getElementById('chkSubtotal').innerText = `${AppState.currency}${subtotal}`;
-        document.getElementById('chkDeliveryFee').innerText = fee > 0 ? `${AppState.currency}${fee}` : 'Free';
-        document.getElementById('chkTotal').innerText = `${AppState.currency}${total}`;
-        document.getElementById('payBtn').innerHTML = `<i class="bi bi-credit-card"></i> <span>Pay Now ${AppState.currency}${total}</span>`;
-
-        if (deliveryMethod === 'delivery' && fee > 0) {
-            const area = document.getElementById('chkArea');
-            const areaName = area.options[area.selectedIndex]?.innerText?.split('(')[0] || '';
-            document.getElementById('chkDistanceInfo').innerText = `Delivery to: ${areaName}`;
-        } else {
-            document.getElementById('chkDistanceInfo').innerText = '';
-        }
-    }
-    /*
-    function initMap() {
-        const key = AppState.config['GOOGLE_MAPS_API_KEY'];
-        if (!key) {
-            document.getElementById('checkoutMap').innerHTML = `<div class='p-4 text-center text-red-500'>Google Maps API Key Missing.<br>Please contact admin.</div>`;
-            return;
-        }
-     
-        // Check if script already loaded
-        if (window.google && window.google.maps) {
-            loadMapComponents();
-            return;
-        }
-     
-        // Load Script Dynamically
-        const script = document.createElement("script");
-        script.src = `https://maps.googleapis.com/maps/api/js?key=${key}&libraries=places,geometry&callback=loadMapComponents`;
-        script.async = true;
-        script.defer = true;
-        document.head.appendChild(script);
-    }
-     
-    window.loadMapComponents = function () {
-        const storeLoc = AppState.config['STORE_LATLNG'] || "5.6037,-0.1870"; // Default Accra
-        const [lat, lng] = storeLoc.split(',').map(Number);
-        const storePosition = { lat, lng };
-     
-        if (!document.getElementById("checkoutMap")) return;
-     
-        map = new google.maps.Map(document.getElementById("checkoutMap"), {
-            center: storePosition,
-            zoom: 12,
-            mapTypeControl: false,
-            streetViewControl: false
-        });
-     
-        // Marker for Store
-        new google.maps.Marker({ position: storePosition, map, icon: 'http://maps.google.com/mapfiles/ms/icons/blue-dot.png', title: "FAYM Store" });
-     
-        // Autocomplete
-        const input = document.getElementById("chkAddress");
-        autocomplete = new google.maps.places.Autocomplete(input);
-        autocomplete.bindTo("bounds", map);
-        autocomplete.addListener("place_changed", () => {
-            const place = autocomplete.getPlace();
-            if (!place.geometry || !place.geometry.location) return;
-     
-            // Show on Map
-            if (place.geometry.viewport) map.fitBounds(place.geometry.viewport);
-            else {
-                map.setCenter(place.geometry.location);
-                map.setZoom(15);
-            }
-            new google.maps.Marker({ position: place.geometry.location, map });
-     
-            // Calculate Distance
-            const distMeters = google.maps.geometry.spherical.computeDistanceBetween(
-                new google.maps.LatLng(storePosition),
-                place.geometry.location
-            );
-            userDistanceKm = distMeters / 1000;
-     
-            // Calculate Fee
-            const base = Number(AppState.config['DELIVERY_BASE_FEE'] || 20);
-            const rate = Number(AppState.config['DELIVERY_PER_KM'] || 5);
-            deliveryFee = Math.ceil(base + (userDistanceKm * rate));
-     
-            updateCheckoutTotals();
-        });
-    }
-     
-    function updateCheckoutTotals() {
-        const subtotal = AppState.cart.reduce((sum, i) => sum + (i.price * i.qty), 0);
-        const fee = deliveryMethod === 'delivery' ? deliveryFee : 0;
-        const total = subtotal + fee;
-     
-        document.getElementById('chkSubtotal').innerText = `${AppState.currency}${subtotal}`;
-        document.getElementById('chkDeliveryFee').innerText = fee > 0 ? `${AppState.currency}${fee}` : 'Free';
-        document.getElementById('chkTotal').innerText = `${AppState.currency}${total}`;
-        document.getElementById('payBtn').innerHTML = `<i class="bi bi-credit-card"></i> <span>Pay Now ${AppState.currency}${total}</span>`;
-     
-        if (deliveryMethod === 'delivery' && fee > 0) {
-            document.getElementById('chkDistanceInfo').innerText = `Distance: ${userDistanceKm.toFixed(1)} km`;
-        } else {
-            document.getElementById('chkDistanceInfo').innerText = '';
-        }
-    }
-     
-    */
-    // --- PAYSTACK PAYMENT ---
-    // --- TOAST NOTIFICATIONS ---
-    function showToast(message, type = 'success') {
-        // Remove existing toasts to prevent stacking
-        const existing = document.getElementById('toast-notification');
-        if (existing) existing.remove();
-
-        const toast = document.createElement('div');
-        toast.id = 'toast-notification';
-        const bg = type === 'success' ? 'bg-black' : 'bg-red-500';
-        const icon = type === 'success' ? 'bi-check-circle-fill' : 'bi-exclamation-circle-fill';
-
-        toast.className = `fixed top-6 left-1/2 -translate-x-1/2 z-[100] ${bg} text-white px-6 py-3 rounded-full shadow-2xl flex items-center gap-3 transform -translate-y-10 opacity-0 transition-all duration-500`;
-        toast.innerHTML = `<i class="bi ${icon}"></i> <span class="font-bold text-sm">${message}</span>`;
-
-        document.body.appendChild(toast);
-
-        // Animate In
-        requestAnimationFrame(() => {
-            toast.classList.remove('-translate-y-10', 'opacity-0');
-        });
-
-        // Auto Remove
-        setTimeout(() => {
-            toast.classList.add('-translate-y-10', 'opacity-0');
-            setTimeout(() => toast.remove(), 500);
-        }, 3000);
-    }
-
-    function logoutUser() {
-        AppState.user = null;
-        localStorage.removeItem('faym_user');
-        checkSession();
-        closeProfile();
-        showToast("Logged out successfully");
-    }
-
-    // --- RENDER PRODUCTS ---
-    function renderProducts(list = AppState.products) {
-        const grid = document.getElementById('productGrid');
-        const latestGrid = document.getElementById('latestGrid');
-
-        if (list.length === 0) {
-            grid.innerHTML = `<div class="col-span-full text-center py-20 text-gray-400"><p class="text-xl font-serif">No products found.</p><button onclick="resetFilters()" class="text-black underline mt-2">Clear Filters</button></div>`;
-            return;
-        }
-
-        const createCard = (p) => {
-            const isNew = p.is_new ? `<span class="absolute top-2 left-2 bg-black text-white text-[10px] font-bold px-2 py-1 uppercase tracking-widest z-10">New</span>` : '';
-            const discount = p.discount_active ? `<span class="absolute top-2 right-2 bg-red-500 text-white text-[10px] font-bold px-2 py-1 uppercase tracking-widest z-10">-${Math.round(((p.base_price - p.discount_price) / p.base_price) * 100)}%</span>` : '';
-
-            // Like State (Check if any variant is liked, or just the parent code)
-            // Since favorites stores sub_codes, we verify if any variant of this product is liked
-            // But for grid liking, we default to the first variant or just visual toggle until modal open?
-            // Let's assume pressing like on grid likes the *first* variant or main sub_code.
-            const isLiked = AppState.favorites.includes(p.sub_code);
-            const heartIcon = isLiked ? 'bi-heart-fill text-red-500' : 'bi-heart text-white drop-shadow-md';
-
-            return `
-            <div class="group relative cursor-pointer fade-in">
-                <div class="relative w-full aspect-[3/4] overflow-hidden bg-gray-100 mb-4 rounded-sm" onclick="openProductModal('${p.parent_code}')">
-                    ${isNew} ${discount}
-                    <img src="${formatImage(p.main_image_url)}" loading="lazy" class="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-700 ease-out">
-                    <div class="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors duration-300"></div>
-                </div>
-                
-                <!-- Like Button on Grid -->
-                <button onclick="toggleGridLike(event, '${p.sub_code}')" class="absolute top-3 right-3 z-20 p-2 rounded-full hover:scale-110 transition active:scale-95">
-                    <i class="bi ${heartIcon} text-xl"></i>
-                </button>
-
-                <div onclick="openProductModal('${p.parent_code}')">
-                    <div class="flex justify-between items-start">
-                        <div>
-                            <h3 class="font-bold text-sm tracking-tight mb-1 group-hover:underline decoration-1 underline-offset-4">${p.product_name}</h3>
-                            <p class="text-xs text-gray-500 mb-1">${p.color_name}</p>
-                        </div>
-                        <div class="text-right">
-                             ${p.discount_active
-                    ? `<span class="block font-bold text-sm text-red-600">${AppState.currency}${p.discount_price}</span><span class="text-xs text-gray-400 line-through">${AppState.currency}${p.base_price}</span>`
-                    : `<span class="block font-bold text-sm">${AppState.currency}${p.base_price}</span>`}
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `;
+    // --- TEST MODE (Localhost/File) ---
+    if (window.location.protocol === 'file:' || AppState.config['TEST_MODE']) {
+        console.log("Test Mode: Bypassing Paystack");
+        const mockRef = "TEST_" + new Date().getTime();
+        const orderPayload = {
+            storeName: "FAYM",
+            customerName: name,
+            phone: phone,
+            location: address,
+            deliveryMethod: deliveryMethod,
+            paymentMethod: "Paystack (Test)",
+            grandTotal: total,
+            items: AppState.cart.map(c => ({
+                sku_id: c.sku,
+                item_name: c.product_name,
+                size: c.size,
+                qty: c.qty,
+                price: c.price
+            })),
+            paymentReference: mockRef
         };
-
-        grid.innerHTML = list.map(createCard).join('');
-
-        // Also render Latest Drops if it exists and we are identifying 'new' items
-        if (latestGrid && list === AppState.products) {
-            const newDrops = list.filter(p => p.is_new).slice(0, 4);
-            if (newDrops.length > 0) {
-                document.getElementById('latestDropsSection').classList.remove('hidden');
-                latestGrid.innerHTML = newDrops.map(createCard).join('');
-            } else {
-                document.getElementById('latestDropsSection').classList.add('hidden');
-            }
-        }
+        // Simulated Backend Call
+        alert(`Test Mode: Payment Successful!\nRef: ${mockRef}\nSimulating Order Processing...`);
+        setTimeout(() => {
+            alert("Order Confirmed! Your Order ID: " + mockRef);
+            closeCheckout();
+            AppState.cart = [];
+            saveCart();
+        }, 1000);
+        return;
     }
 
-    async function toggleGridLike(e, subCode) {
-        e.stopPropagation(); // Prevent opening modal
-        if (!AppState.user) {
-            showToast("Please login to save favorites", "error");
-            setTimeout(openAuth, 1000);
-            return;
-        }
+    if (!paystackKey) {
+        alert("Paystack Public Key Missing in Config. Cannot process payment.");
+        return;
+    }
 
-        const isLiked = AppState.favorites.includes(subCode);
-        const btnIcon = e.currentTarget.querySelector('i');
+    const handler = PaystackPop.setup({
+        key: paystackKey,
+        email: AppState.user.email,
+        amount: total * 100, // Kobo/Pesewas
+        currency: 'GHS',
+        metadata: {
+            custom_fields: [
+                { display_name: "Customer Name", variable_name: "customer_name", value: name },
+                { display_name: "Phone", variable_name: "phone", value: phone },
+                { display_name: "Delivery Method", variable_name: "delivery_method", value: deliveryMethod }
+            ]
+        },
+        callback: function (response) {
+            // VERIFY PAYMENT ON BACKEND
+            // alert("Payment Successful! Ref: " + response.reference + ". Saving Order...");
 
-        // Optimistic UI Update
-        btnIcon.className = isLiked ? 'bi bi-heart text-white drop-shadow-md' : 'bi bi-heart-fill text-red-500';
+            // Prepare Order Data
+            const orderPayload = {
+                storeName: "FAYM",
+                customerName: name,
+                phone: phone,
+                location: address,
+                deliveryMethod: deliveryMethod,
+                paymentMethod: "Paystack",
+                grandTotal: total,
+                items: AppState.cart.map(c => ({
+                    sku_id: c.sku,
+                    item_name: c.product_name,
+                    size: c.size,
+                    qty: c.qty,
+                    price: c.price
+                })),
+                paymentReference: response.reference // CRITICAL: This triggers Verification
+            };
 
-        // Pulse Animation
-        e.currentTarget.classList.add('scale-125');
-        setTimeout(() => e.currentTarget.classList.remove('scale-125'), 200);
-
-        if (isLiked) {
-            AppState.favorites = AppState.favorites.filter(x => x !== subCode);
-            showToast("Removed from favorites");
-        } else {
-            AppState.favorites.push(subCode);
-            showToast("Added to favorites");
-        }
-
-        // Server Sync
-        try {
-            await fetch(API_URL, {
+            // Send to Backend
+            fetch(API_URL, {
                 method: 'POST',
-                body: JSON.stringify({ action: 'toggleLike', payload: { email: AppState.user.email, productSubCode: subCode } })
+                body: JSON.stringify({ action: 'processOrder', payload: orderPayload })
+            })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        alert("Order Confirmed! Your Order ID: " + data.parentRef);
+                        closeCheckout();
+                        AppState.cart = [];
+                        saveCart();
+                        // Optional: openProfile();
+                    } else {
+                        alert("Order Verification Failed: " + data.message);
+                    }
+                })
+                .catch(err => alert("Network Error: " + err));
+        },
+        onClose: function () {
+            alert('Transaction was closed.');
+        }
+    });
+    handler.openIframe();
+}
+function toggleCart() {
+    const d = document.getElementById('cartDrawer');
+    d.classList.toggle('translate-x-full');
+    document.getElementById('cartBackdrop').classList.toggle('hidden');
+    setTimeout(() => document.getElementById('cartBackdrop').classList.toggle('opacity-0'), 10);
+}
+// --- OTHER UI ---
+let heroInterval;
+function initHero() {
+    const con = document.getElementById('sliderContainer');
+    const titleEl = document.getElementById('heroTitle');
+    const subTitleEl = document.getElementById('heroSubtext');
+    const ctaBtn = document.getElementById('heroBtn');
+
+    // 1. Gather Slides
+    const slides = [];
+    for (let i = 1; i <= 5; i++) {
+        const url = AppState.config[`hero_slide_${i}_url`];
+        if (url) {
+            slides.push({
+                url: formatImage(url),
+                type: AppState.config[`hero_slide_${i}_type`] || 'image',
+                text: AppState.config[`hero_slide_${i}_text`] || '',
+                subtext: AppState.config[`hero_slide_${i}_subtext`] || ''
             });
-        } catch (err) {
-            console.error("Like sync failed", err);
         }
-
-        // Re-render to update all views
-        // renderProducts(); // Optional: Re-rendering full grid might be heavy, but keeps everything in sync
     }
 
-    function toggleCart() {
-        const d = document.getElementById('cartDrawer');
-        d.classList.toggle('translate-x-full');
-        document.getElementById('cartBackdrop').classList.toggle('hidden');
-        setTimeout(() => document.getElementById('cartBackdrop').classList.toggle('opacity-0'), 10);
-    }
-    // --- OTHER UI ---
-    let heroInterval;
-    function initHero() {
-        const con = document.getElementById('sliderContainer');
-        const titleEl = document.getElementById('heroTitle');
-        const subTitleEl = document.getElementById('heroSubtext');
-        const ctaBtn = document.getElementById('heroBtn');
+    if (slides.length === 0) return;
 
-        // 1. Gather Slides
-        const slides = [];
-        for (let i = 1; i <= 5; i++) {
-            const url = AppState.config[`hero_slide_${i}_url`];
-            if (url) {
-                slides.push({
-                    url: formatImage(url),
-                    type: AppState.config[`hero_slide_${i}_type`] || 'image',
-                    text: AppState.config[`hero_slide_${i}_text`] || '',
-                    subtext: AppState.config[`hero_slide_${i}_subtext`] || ''
-                });
-            }
-        }
+    // 2. Render Slides DOM
+    // Uses translateX for sliding. Initial state: Index 0 is visible (0%), others hidden (100%).
+    const slidesHtml = slides.map((s, i) => {
+        const media = s.type === 'video'
+            ? `<video src="${s.url}" class="w-full h-full object-cover" muted loop playsinline></video>`
+            : `<img src="${s.url}" class="w-full h-full object-cover">`;
 
-        if (slides.length === 0) return;
+        // Initial Styles
+        const style = i === 0 ? 'transform: translateX(0); z-index: 10; opacity: 1;' : 'transform: translateX(100%); z-index: 0; opacity: 0;';
 
-        // 2. Render Slides DOM
-        // Uses translateX for sliding. Initial state: Index 0 is visible (0%), others hidden (100%).
-        const slidesHtml = slides.map((s, i) => {
-            const media = s.type === 'video'
-                ? `<video src="${s.url}" class="w-full h-full object-cover" muted loop playsinline></video>`
-                : `<img src="${s.url}" class="w-full h-full object-cover">`;
-
-            // Initial Styles
-            const style = i === 0 ? 'transform: translateX(0); z-index: 10; opacity: 1;' : 'transform: translateX(100%); z-index: 0; opacity: 0;';
-
-            return `<div class="absolute inset-0 transition-transform duration-500 ease-in-out bg-gray-100" style="${style}" data-index="${i}">
+        return `<div class="absolute inset-0 transition-transform duration-500 ease-in-out bg-gray-100" style="${style}" data-index="${i}">
                     ${media}
                     <div class="absolute inset-0 bg-black/20"></div>
                 </div>`;
-        }).join('');
+    }).join('');
 
-        // 3. Render Controls (Arrows & Dots)
-        const controlsHtml = `
+    // 3. Render Controls (Arrows & Dots)
+    const controlsHtml = `
         <button id="heroPrev" class="absolute left-4 top-1/2 -translate-y-1/2 z-30 p-3 rounded-full bg-black/20 text-white backdrop-blur-md hover:bg-black/50 hover:scale-110 transition hidden md:block">
             <i class="bi bi-chevron-left text-2xl"></i>
         </button>
@@ -1371,305 +1308,305 @@ function renderProfileFavorites() {
         </div>
     `;
 
-        con.innerHTML = slidesHtml + controlsHtml;
+    con.innerHTML = slidesHtml + controlsHtml;
 
-        // 4. Setup State & Logic
-        let curIdx = 0;
-        let isAnimating = false;
+    // 4. Setup State & Logic
+    let curIdx = 0;
+    let isAnimating = false;
 
-        // Helper to update text
-        const updateText = (idx) => {
-            const txt = slides[idx].text;
-            const sub = slides[idx].subtext;
+    // Helper to update text
+    const updateText = (idx) => {
+        const txt = slides[idx].text;
+        const sub = slides[idx].subtext;
 
-            // Fade Out
-            titleEl.style.opacity = '0';
-            if (subTitleEl) subTitleEl.style.opacity = '0';
+        // Fade Out
+        titleEl.style.opacity = '0';
+        if (subTitleEl) subTitleEl.style.opacity = '0';
 
-            setTimeout(() => {
-                // Update Content
-                titleEl.innerText = txt;
-                if (subTitleEl) {
-                    subTitleEl.innerText = sub;
-                    if (!sub) subTitleEl.style.display = 'none';
-                    else subTitleEl.style.display = 'block';
-                }
-
-                // Fade In
-                titleEl.style.opacity = '1';
-                if (subTitleEl && sub) subTitleEl.style.opacity = '1';
-            }, 500);
-
-            // Update Dots
-            const dots = document.getElementById('heroDots').children;
-            Array.from(dots).forEach((dot, i) => {
-                dot.className = i === idx
-                    ? "h-1.5 rounded-full transition-all duration-300 w-8 bg-white"
-                    : "h-1.5 rounded-full transition-all duration-300 w-1.5 bg-white/50 hover:bg-white";
-            });
-        };
-
-        // Initialize Text
-        updateText(0);
-        ctaBtn.classList.remove('opacity-0');
-
-        // Slide Transition Logic
-        const transitionSlide = (nextIdx, direction) => {
-            if (isAnimating || nextIdx === curIdx) return;
-            isAnimating = true;
-
-            const slideEls = Array.from(con.children).filter(el => el.hasAttribute('data-index'));
-            const currEl = slideEls[curIdx];
-            const nextEl = slideEls[nextIdx];
-
-            // Videos
-            const nextVid = nextEl.querySelector('video');
-            if (nextVid) nextVid.play().catch(() => { });
-
-            // Determine positions
-            // Next: Curr (-100%), Next starts (100%) -> (0%)
-            // Prev: Curr (100%), Next starts (-100%) -> (0%)
-            const startPos = direction === 'next' ? '100%' : '-100%';
-            const endPos = direction === 'next' ? '-100%' : '100%';
-
-            // Prepare Next Slide (Instant)
-            nextEl.style.transition = 'none';
-            nextEl.style.transform = `translateX(${startPos})`;
-            nextEl.style.zIndex = '20';
-            nextEl.style.opacity = '1';
-
-            // Force Reflow
-            void nextEl.offsetWidth;
-
-            // Animate (Restore Transition)
-            const transitionStyle = 'transform 0.5s ease-in-out';
-            currEl.style.transition = transitionStyle;
-            nextEl.style.transition = transitionStyle;
-
-            // Execute Move
-            requestAnimationFrame(() => {
-                currEl.style.transform = `translateX(${endPos})`;
-                nextEl.style.transform = `translateX(0)`;
-            });
-
-            // Cleanup
-            setTimeout(() => {
-                currEl.style.zIndex = '0';
-                currEl.style.opacity = '0'; // Hide
-                const currVid = currEl.querySelector('video');
-                if (currVid) { currVid.pause(); currVid.currentTime = 0; }
-
-                isAnimating = false;
-            }, 500); // Match duration
-
-            curIdx = nextIdx;
-            updateText(curIdx);
-        };
-
-        // Globalize jump
-        window.jumpToSlide = (idx) => {
-            if (idx === curIdx) return;
-            // Logic: if target > current, assume next, else prev
-            const dir = idx > curIdx ? 'next' : 'prev';
-            transitionSlide(idx, dir);
-            resetTimer();
-        };
-
-        const nextSlide = () => {
-            const next = (curIdx + 1) % slides.length;
-            transitionSlide(next, 'next');
-        };
-
-        const prevSlide = () => {
-            const prev = (curIdx - 1 + slides.length) % slides.length;
-            transitionSlide(prev, 'prev');
-        };
-
-        // Bind Buttons
-        const nextBtn = document.getElementById('heroNext');
-        const prevBtn = document.getElementById('heroPrev');
-        if (nextBtn) nextBtn.onclick = () => { nextSlide(); resetTimer(); };
-        if (prevBtn) prevBtn.onclick = () => { prevSlide(); resetTimer(); };
-
-        // Auto Play
-        const startCycle = () => {
-            if (slides.length > 1) {
-                clearInterval(heroInterval);
-                heroInterval = setInterval(nextSlide, 5000);
+        setTimeout(() => {
+            // Update Content
+            titleEl.innerText = txt;
+            if (subTitleEl) {
+                subTitleEl.innerText = sub;
+                if (!sub) subTitleEl.style.display = 'none';
+                else subTitleEl.style.display = 'block';
             }
-        };
-        const resetTimer = () => {
+
+            // Fade In
+            titleEl.style.opacity = '1';
+            if (subTitleEl && sub) subTitleEl.style.opacity = '1';
+        }, 500);
+
+        // Update Dots
+        const dots = document.getElementById('heroDots').children;
+        Array.from(dots).forEach((dot, i) => {
+            dot.className = i === idx
+                ? "h-1.5 rounded-full transition-all duration-300 w-8 bg-white"
+                : "h-1.5 rounded-full transition-all duration-300 w-1.5 bg-white/50 hover:bg-white";
+        });
+    };
+
+    // Initialize Text
+    updateText(0);
+    ctaBtn.classList.remove('opacity-0');
+
+    // Slide Transition Logic
+    const transitionSlide = (nextIdx, direction) => {
+        if (isAnimating || nextIdx === curIdx) return;
+        isAnimating = true;
+
+        const slideEls = Array.from(con.children).filter(el => el.hasAttribute('data-index'));
+        const currEl = slideEls[curIdx];
+        const nextEl = slideEls[nextIdx];
+
+        // Videos
+        const nextVid = nextEl.querySelector('video');
+        if (nextVid) nextVid.play().catch(() => { });
+
+        // Determine positions
+        // Next: Curr (-100%), Next starts (100%) -> (0%)
+        // Prev: Curr (100%), Next starts (-100%) -> (0%)
+        const startPos = direction === 'next' ? '100%' : '-100%';
+        const endPos = direction === 'next' ? '-100%' : '100%';
+
+        // Prepare Next Slide (Instant)
+        nextEl.style.transition = 'none';
+        nextEl.style.transform = `translateX(${startPos})`;
+        nextEl.style.zIndex = '20';
+        nextEl.style.opacity = '1';
+
+        // Force Reflow
+        void nextEl.offsetWidth;
+
+        // Animate (Restore Transition)
+        const transitionStyle = 'transform 0.5s ease-in-out';
+        currEl.style.transition = transitionStyle;
+        nextEl.style.transition = transitionStyle;
+
+        // Execute Move
+        requestAnimationFrame(() => {
+            currEl.style.transform = `translateX(${endPos})`;
+            nextEl.style.transform = `translateX(0)`;
+        });
+
+        // Cleanup
+        setTimeout(() => {
+            currEl.style.zIndex = '0';
+            currEl.style.opacity = '0'; // Hide
+            const currVid = currEl.querySelector('video');
+            if (currVid) { currVid.pause(); currVid.currentTime = 0; }
+
+            isAnimating = false;
+        }, 500); // Match duration
+
+        curIdx = nextIdx;
+        updateText(curIdx);
+    };
+
+    // Globalize jump
+    window.jumpToSlide = (idx) => {
+        if (idx === curIdx) return;
+        // Logic: if target > current, assume next, else prev
+        const dir = idx > curIdx ? 'next' : 'prev';
+        transitionSlide(idx, dir);
+        resetTimer();
+    };
+
+    const nextSlide = () => {
+        const next = (curIdx + 1) % slides.length;
+        transitionSlide(next, 'next');
+    };
+
+    const prevSlide = () => {
+        const prev = (curIdx - 1 + slides.length) % slides.length;
+        transitionSlide(prev, 'prev');
+    };
+
+    // Bind Buttons
+    const nextBtn = document.getElementById('heroNext');
+    const prevBtn = document.getElementById('heroPrev');
+    if (nextBtn) nextBtn.onclick = () => { nextSlide(); resetTimer(); };
+    if (prevBtn) prevBtn.onclick = () => { prevSlide(); resetTimer(); };
+
+    // Auto Play
+    const startCycle = () => {
+        if (slides.length > 1) {
             clearInterval(heroInterval);
-            startCycle();
-        };
+            heroInterval = setInterval(nextSlide, 5000);
+        }
+    };
+    const resetTimer = () => {
+        clearInterval(heroInterval);
         startCycle();
+    };
+    startCycle();
 
-        // 5. Touch / Swipe Support
-        // 5. Touch / Swipe Support (Active Tracking)
-        let touchStartX = 0;
-        let touchStartY = 0;
-        let currentDragX = 0;
-        let isDragging = false;
-        const heroSec = document.getElementById('heroSection');
+    // 5. Touch / Swipe Support
+    // 5. Touch / Swipe Support (Active Tracking)
+    let touchStartX = 0;
+    let touchStartY = 0;
+    let currentDragX = 0;
+    let isDragging = false;
+    const heroSec = document.getElementById('heroSection');
 
-        heroSec.ontouchstart = (e) => {
-            if (isAnimating) return;
-            touchStartX = e.changedTouches[0].clientX;
-            touchStartY = e.changedTouches[0].clientY;
-            isDragging = true;
-            clearInterval(heroInterval);
+    heroSec.ontouchstart = (e) => {
+        if (isAnimating) return;
+        touchStartX = e.changedTouches[0].clientX;
+        touchStartY = e.changedTouches[0].clientY;
+        isDragging = true;
+        clearInterval(heroInterval);
 
-            // Prepare neighbors
-            const slideEls = Array.from(con.children).filter(el => el.hasAttribute('data-index'));
-            const prevIdx = (curIdx - 1 + slides.length) % slides.length;
-            const nextIdx = (curIdx + 1) % slides.length;
-            const currEl = slideEls[curIdx];
-            const prevEl = slideEls[prevIdx];
-            const nextEl = slideEls[nextIdx];
+        // Prepare neighbors
+        const slideEls = Array.from(con.children).filter(el => el.hasAttribute('data-index'));
+        const prevIdx = (curIdx - 1 + slides.length) % slides.length;
+        const nextIdx = (curIdx + 1) % slides.length;
+        const currEl = slideEls[curIdx];
+        const prevEl = slideEls[prevIdx];
+        const nextEl = slideEls[nextIdx];
 
-            // Disable transitions for instant tracking
-            [currEl, prevEl, nextEl].forEach(el => el.style.transition = 'none');
+        // Disable transitions for instant tracking
+        [currEl, prevEl, nextEl].forEach(el => el.style.transition = 'none');
 
-            // Position neighbors invisible but ready
-            prevEl.style.transform = 'translateX(-100%)';
-            prevEl.style.opacity = '1';
-            prevEl.style.zIndex = '5';
+        // Position neighbors invisible but ready
+        prevEl.style.transform = 'translateX(-100%)';
+        prevEl.style.opacity = '1';
+        prevEl.style.zIndex = '5';
 
-            nextEl.style.transform = 'translateX(100%)';
-            nextEl.style.opacity = '1';
-            nextEl.style.zIndex = '5';
+        nextEl.style.transform = 'translateX(100%)';
+        nextEl.style.opacity = '1';
+        nextEl.style.zIndex = '5';
 
-            // Current stays on top
-            currEl.style.zIndex = '10';
-        };
+        // Current stays on top
+        currEl.style.zIndex = '10';
+    };
 
-        heroSec.ontouchmove = (e) => {
-            if (!isDragging) return;
-            const cx = e.changedTouches[0].clientX;
-            const cy = e.changedTouches[0].clientY;
-            const diffX = cx - touchStartX;
-            const diffY = cy - touchStartY;
+    heroSec.ontouchmove = (e) => {
+        if (!isDragging) return;
+        const cx = e.changedTouches[0].clientX;
+        const cy = e.changedTouches[0].clientY;
+        const diffX = cx - touchStartX;
+        const diffY = cy - touchStartY;
 
-            // Lock scroll if mostly horizontal
-            if (Math.abs(diffX) > Math.abs(diffY)) e.preventDefault();
+        // Lock scroll if mostly horizontal
+        if (Math.abs(diffX) > Math.abs(diffY)) e.preventDefault();
 
-            currentDragX = cx;
+        currentDragX = cx;
 
-            const slideEls = Array.from(con.children).filter(el => el.hasAttribute('data-index'));
-            const prevIdx = (curIdx - 1 + slides.length) % slides.length;
-            const nextIdx = (curIdx + 1) % slides.length;
+        const slideEls = Array.from(con.children).filter(el => el.hasAttribute('data-index'));
+        const prevIdx = (curIdx - 1 + slides.length) % slides.length;
+        const nextIdx = (curIdx + 1) % slides.length;
 
-            const currEl = slideEls[curIdx];
-            const prevEl = slideEls[prevIdx];
-            const nextEl = slideEls[nextIdx];
+        const currEl = slideEls[curIdx];
+        const prevEl = slideEls[prevIdx];
+        const nextEl = slideEls[nextIdx];
 
-            // Move Current
-            currEl.style.transform = `translateX(${diffX}px)`;
+        // Move Current
+        currEl.style.transform = `translateX(${diffX}px)`;
 
-            // Move Neighbors
-            if (diffX < 0) {
-                // Dragging Left -> showing Next
-                nextEl.style.transform = `translateX(calc(100% + ${diffX}px))`;
-            } else {
-                // Dragging Right -> showing Prev
-                prevEl.style.transform = `translateX(calc(-100% + ${diffX}px))`;
-            }
-        };
+        // Move Neighbors
+        if (diffX < 0) {
+            // Dragging Left -> showing Next
+            nextEl.style.transform = `translateX(calc(100% + ${diffX}px))`;
+        } else {
+            // Dragging Right -> showing Prev
+            prevEl.style.transform = `translateX(calc(-100% + ${diffX}px))`;
+        }
+    };
 
-        heroSec.ontouchend = (e) => {
-            if (!isDragging) return;
-            isDragging = false;
-            const diff = currentDragX - touchStartX;
-            const threshold = 50;
+    heroSec.ontouchend = (e) => {
+        if (!isDragging) return;
+        isDragging = false;
+        const diff = currentDragX - touchStartX;
+        const threshold = 50;
 
-            // Restore Transitions
-            const slideEls = Array.from(con.children).filter(el => el.hasAttribute('data-index'));
-            const prevIdx = (curIdx - 1 + slides.length) % slides.length;
-            const nextIdx = (curIdx + 1) % slides.length;
-            const currEl = slideEls[curIdx];
-            const prevEl = slideEls[prevIdx];
-            const nextEl = slideEls[nextIdx];
+        // Restore Transitions
+        const slideEls = Array.from(con.children).filter(el => el.hasAttribute('data-index'));
+        const prevIdx = (curIdx - 1 + slides.length) % slides.length;
+        const nextIdx = (curIdx + 1) % slides.length;
+        const currEl = slideEls[curIdx];
+        const prevEl = slideEls[prevIdx];
+        const nextEl = slideEls[nextIdx];
 
-            const trans = 'transform 0.5s ease-in-out';
-            [currEl, prevEl, nextEl].forEach(el => el.style.transition = trans);
+        const trans = 'transform 0.5s ease-in-out';
+        [currEl, prevEl, nextEl].forEach(el => el.style.transition = trans);
 
-            if (Math.abs(diff) > threshold) {
-                // Complete the Move
-                isAnimating = true;
-                if (diff < 0) {
-                    // Next
-                    requestAnimationFrame(() => {
-                        currEl.style.transform = 'translateX(-100%)';
-                        nextEl.style.transform = 'translateX(0)';
-                    });
-                    finishSwipe(nextIdx);
-                } else {
-                    // Prev
-                    requestAnimationFrame(() => {
-                        currEl.style.transform = 'translateX(100%)';
-                        prevEl.style.transform = 'translateX(0)';
-                    });
-                    finishSwipe(prevIdx);
-                }
-            } else {
-                // Revert / Snap Back
+        if (Math.abs(diff) > threshold) {
+            // Complete the Move
+            isAnimating = true;
+            if (diff < 0) {
+                // Next
                 requestAnimationFrame(() => {
-                    currEl.style.transform = 'translateX(0)';
-                    prevEl.style.transform = 'translateX(-100%)';
-                    nextEl.style.transform = 'translateX(100%)';
+                    currEl.style.transform = 'translateX(-100%)';
+                    nextEl.style.transform = 'translateX(0)';
                 });
-                // Cleanup Neighbor Opacity after snap
-                setTimeout(() => {
-                    prevEl.style.opacity = '0';
-                    nextEl.style.opacity = '0';
-                }, 500);
+                finishSwipe(nextIdx);
+            } else {
+                // Prev
+                requestAnimationFrame(() => {
+                    currEl.style.transform = 'translateX(100%)';
+                    prevEl.style.transform = 'translateX(0)';
+                });
+                finishSwipe(prevIdx);
             }
-            startCycle();
-        };
-
-        const finishSwipe = (targetIdx) => {
+        } else {
+            // Revert / Snap Back
+            requestAnimationFrame(() => {
+                currEl.style.transform = 'translateX(0)';
+                prevEl.style.transform = 'translateX(-100%)';
+                nextEl.style.transform = 'translateX(100%)';
+            });
+            // Cleanup Neighbor Opacity after snap
             setTimeout(() => {
-                const slideEls = Array.from(con.children).filter(el => el.hasAttribute('data-index'));
-                slideEls.forEach((el, i) => {
-                    if (i !== targetIdx) {
-                        el.style.zIndex = '0';
-                        el.style.opacity = '0'; // Hide others
-                    } else {
-                        el.style.zIndex = '10'; // Active
-                        el.style.opacity = '1';
-                    }
-                });
-                // Pause/Reset Videos of OLD slide
-                const oldVid = slideEls[curIdx].querySelector('video');
-                if (oldVid) { oldVid.pause(); oldVid.currentTime = 0; }
-
-                // Play Video of NEW slide
-                const newVid = slideEls[targetIdx].querySelector('video');
-                if (newVid) newVid.play().catch(() => { });
-
-                isAnimating = false;
-                curIdx = targetIdx;
-                updateText(curIdx);
+                prevEl.style.opacity = '0';
+                nextEl.style.opacity = '0';
             }, 500);
-        };
+        }
+        startCycle();
+    };
 
-        // Pause on Hover
-        heroSec.onmouseenter = () => clearInterval(heroInterval);
-        heroSec.onmouseleave = startCycle;
-    }
-    function scrollToGrid() { document.getElementById('productGrid').scrollIntoView({ behavior: 'smooth' }); }
+    const finishSwipe = (targetIdx) => {
+        setTimeout(() => {
+            const slideEls = Array.from(con.children).filter(el => el.hasAttribute('data-index'));
+            slideEls.forEach((el, i) => {
+                if (i !== targetIdx) {
+                    el.style.zIndex = '0';
+                    el.style.opacity = '0'; // Hide others
+                } else {
+                    el.style.zIndex = '10'; // Active
+                    el.style.opacity = '1';
+                }
+            });
+            // Pause/Reset Videos of OLD slide
+            const oldVid = slideEls[curIdx].querySelector('video');
+            if (oldVid) { oldVid.pause(); oldVid.currentTime = 0; }
 
-    // Size Guide
-    function openSizeGuideModal() {
-        document.getElementById('sizeGuideModal').classList.remove('hidden');
-        document.getElementById('sizeGuideModal').classList.add('flex');
-        const cat = currentVar ? currentVar.category : "General";
-        const c = document.getElementById('sizeGuideContent');
-        if (cat === 'T-Shirt') c.innerHTML = "<b>T-Shirt</b><br>S: 36 | M: 38 | L: 40";
-        else if (cat === 'Hoodie') c.innerHTML = "<b>Hoodie</b><br>S: 38 | M: 40 | L: 42";
-        else c.innerHTML = "Standard Sizing";
-    }
-    function closeSizeGuide() {
-        document.getElementById('sizeGuideModal').classList.add('hidden');
-        document.getElementById('sizeGuideModal').classList.remove('flex');
-    }
+            // Play Video of NEW slide
+            const newVid = slideEls[targetIdx].querySelector('video');
+            if (newVid) newVid.play().catch(() => { });
+
+            isAnimating = false;
+            curIdx = targetIdx;
+            updateText(curIdx);
+        }, 500);
+    };
+
+    // Pause on Hover
+    heroSec.onmouseenter = () => clearInterval(heroInterval);
+    heroSec.onmouseleave = startCycle;
+}
+function scrollToGrid() { document.getElementById('productGrid').scrollIntoView({ behavior: 'smooth' }); }
+
+// Size Guide
+function openSizeGuideModal() {
+    document.getElementById('sizeGuideModal').classList.remove('hidden');
+    document.getElementById('sizeGuideModal').classList.add('flex');
+    const cat = currentVar ? currentVar.category : "General";
+    const c = document.getElementById('sizeGuideContent');
+    if (cat === 'T-Shirt') c.innerHTML = "<b>T-Shirt</b><br>S: 36 | M: 38 | L: 40";
+    else if (cat === 'Hoodie') c.innerHTML = "<b>Hoodie</b><br>S: 38 | M: 40 | L: 42";
+    else c.innerHTML = "Standard Sizing";
+}
+function closeSizeGuide() {
+    document.getElementById('sizeGuideModal').classList.add('hidden');
+    document.getElementById('sizeGuideModal').classList.remove('flex');
+}
