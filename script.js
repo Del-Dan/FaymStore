@@ -44,6 +44,7 @@ async function initApp() {
         }));
         AppState.inventory = res.inventory;
         AppState.config = res.config;
+        AppState.locations = res.locations; // Capture locations from API
         finalizeInit();
     } catch (e) {
         console.warn("API Init failed, using mock data for testing", e);
@@ -104,6 +105,7 @@ function finalizeInit() {
     initHero();
     renderLatestDrops();
     if (AppState.user) fetchLikes();
+    renderCartDrawer();
 }
 
 // --- AUTH ---
@@ -123,7 +125,86 @@ function openProfile() {
     document.getElementById('profPhone').value = AppState.user.phone || "";
     document.getElementById('profileModal').classList.remove('hidden');
     document.getElementById('profileModal').classList.add('flex');
+    switchProfileTab('details'); // Default tab
 }
+
+function switchProfileTab(tab) {
+    const tDet = document.getElementById('tabDetails');
+    const tOrd = document.getElementById('tabOrders');
+    const pDet = document.getElementById('paneDetails');
+    const pOrd = document.getElementById('paneOrders');
+
+    if (tab === 'details') {
+        tDet.className = "pb-2 text-sm font-bold border-b-2 border-black transition";
+        tDet.classList.remove('text-gray-400');
+        tOrd.className = "pb-2 text-sm font-bold text-gray-400 border-b-2 border-transparent hover:text-gray-600 transition";
+        pDet.classList.remove('hidden');
+        pOrd.classList.add('hidden');
+    } else {
+        tOrd.className = "pb-2 text-sm font-bold border-b-2 border-black transition";
+        tOrd.classList.remove('text-gray-400');
+        tDet.className = "pb-2 text-sm font-bold text-gray-400 border-b-2 border-transparent hover:text-gray-600 transition";
+        pOrd.classList.remove('hidden');
+        pDet.classList.add('hidden');
+        loadOrderHistory();
+    }
+}
+
+async function loadOrderHistory() {
+    const div = document.getElementById('paneOrders');
+    div.innerHTML = '<div class="text-center py-4"><div class="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto"></div></div>';
+
+    try {
+        const res = await fetch(API_URL, {
+            method: 'POST',
+            body: JSON.stringify({ action: 'getOrderHistory', payload: { email: AppState.user.email } })
+        }).then(r => r.json());
+
+        if (res.success && res.orders.length > 0) {
+            div.innerHTML = res.orders.map(o => `
+                <div class="border rounded-lg p-3 text-sm">
+                    <div class="flex justify-between items-start mb-2">
+                        <div>
+                            <div class="font-bold">#${o.order_id}</div>
+                            <div class="text-xs text-gray-500">${new Date(o.date).toLocaleDateString()}</div>
+                        </div>
+                        <div class="px-2 py-1 rounded text-xs font-bold ${getStatusColor(o.status)}">
+                            ${o.status.toUpperCase()}
+                        </div>
+                    </div>
+                    <div class="space-y-1 mb-2">
+                        ${o.items.map(i => `<div class="text-gray-600 truncate">${i.item_name} (x${i.qty})</div>`).join('')}
+                    </div>
+                    <div class="flex justify-between items-center border-t pt-2 mt-2">
+                        <span class="font-bold">Total</span>
+                        <span class="font-bold">${AppState.currency}${o.total}</span>
+                    </div>
+                </div>
+            `).join('');
+        } else {
+            div.innerHTML = `
+                <div class="text-center py-8 text-gray-500">
+                     <i class="bi bi-bag-x text-4xl mb-2 block"></i>
+                     <p>No orders found.</p>
+                </div>`;
+        }
+    } catch (e) {
+        div.innerHTML = '<div class="text-red-500 text-center text-sm">Failed to load orders.</div>';
+    }
+}
+
+function getStatusColor(status) {
+    switch (status.toLowerCase()) {
+        case 'pending': return 'bg-yellow-100 text-yellow-800';
+        case 'paid': return 'bg-blue-100 text-blue-800';
+        case 'processing': return 'bg-purple-100 text-purple-800';
+        case 'shipped': return 'bg-indigo-100 text-indigo-800';
+        case 'delivered': return 'bg-green-100 text-green-800';
+        case 'cancelled': return 'bg-red-100 text-red-800';
+        default: return 'bg-gray-100 text-gray-800';
+    }
+}
+
 function closeProfile() {
     document.getElementById('profileModal').classList.add('hidden');
     document.getElementById('profileModal').classList.remove('flex');
@@ -179,61 +260,45 @@ async function handleUpdateProfile(e) {
     btn.innerText = txt; btn.disabled = false;
 }
 
+// --- AUTH LOGIC ---
 function openAuth() { document.getElementById('authModal').classList.remove('hidden'); document.getElementById('authModal').classList.add('flex'); }
 function closeAuth() { document.getElementById('authModal').classList.add('hidden'); document.getElementById('authModal').classList.remove('flex'); }
+
 function switchAuth(mode) {
-    ['loginForm', 'registerForm'].forEach(id => document.getElementById(id).classList.add('hidden'));
+    ['loginForm', 'registerForm', 'forgotForm'].forEach(id => document.getElementById(id).classList.add('hidden'));
     document.getElementById(`${mode}Form`).classList.remove('hidden');
 }
-function logoutUser() { localStorage.removeItem('faym_user'); location.reload(); }
 
-async function handleRegister(e) {
-    e.preventDefault();
-    const f = e.target;
-    const errEl = document.getElementById('regError');
-    errEl.classList.add('hidden');
+function clearError(input) {
+    input.classList.remove('border-red-500');
+    const p = input.nextElementSibling;
+    if (p && p.classList.contains('error-msg')) p.classList.add('hidden');
+}
 
-    // Validation: Min 6 chars
-    const pw = f.password.value.trim();
-    if (pw.length < 6) {
-        errEl.innerText = "Password must be at least 6 characters.";
-        errEl.classList.remove('hidden');
-        return;
+function showError(input, msg) {
+    input.classList.add('border-red-500');
+    const p = input.nextElementSibling;
+    if (p && p.classList.contains('error-msg')) {
+        p.innerText = msg;
+        p.classList.remove('hidden');
     }
-
-    const btn = f.querySelector('button');
-    const txt = btn.innerText;
-    btn.innerText = "Creating..."; btn.disabled = true;
-
-    try {
-        const res = await fetch(API_URL, {
-            method: 'POST',
-            body: JSON.stringify({
-                action: 'registerUser',
-                payload: {
-                    fullName: f.fullName.value,
-                    email: f.email.value.trim(),
-                    phone: f.phone.value,
-                    password: pw
-                }
-            })
-        }).then(r => r.json());
-
-        if (res.success) {
-            alert('Account Created! Please Login.');
-            switchAuth('login');
-        } else {
-            errEl.innerText = res.message;
-            errEl.classList.remove('hidden');
-        }
-    } catch (e) { errEl.innerText = "Connection Error"; errEl.classList.remove('hidden'); }
-    btn.innerText = txt; btn.disabled = false;
 }
 
 async function handleLogin(e) {
     e.preventDefault();
     const f = e.target;
-    const btn = f.querySelector('button');
+    let valid = true;
+
+    // Inline Validation
+    clearError(f.email);
+    clearError(f.password);
+
+    if (!f.email.value.trim()) { showError(f.email, 'Email is required'); valid = false; }
+    if (!f.password.value.trim()) { showError(f.password, 'Password is required'); valid = false; }
+
+    if (!valid) return;
+
+    const btn = f.querySelector('button[type="submit"]');
     const txt = btn.innerText;
     btn.innerText = "Verifying..."; btn.disabled = true;
 
@@ -248,9 +313,86 @@ async function handleLogin(e) {
             localStorage.setItem('faym_user', JSON.stringify(res.user));
             location.reload();
         } else {
-            alert(res.message);
+            // General Error (or map to specific field if backend supports)
+            showError(f.password, res.message || "Invalid credentials");
         }
-    } catch (e) { alert("Login Error"); }
+    } catch (e) { showError(f.password, "Connection Error"); }
+    btn.innerText = txt; btn.disabled = false;
+}
+
+async function handleRegister(e) {
+    e.preventDefault();
+    const f = e.target;
+    let valid = true;
+
+    // Clear previous errors
+    clearError(f.fullName);
+    clearError(f.email);
+    clearError(f.phone);
+    clearError(f.password);
+
+    // Inline Validation
+    if (!f.fullName.value.trim()) { showError(f.fullName, 'Name is required'); valid = false; }
+    if (!f.email.value.trim() || !f.email.value.includes('@')) { showError(f.email, 'Valid email required'); valid = false; }
+    if (!f.phone.value.trim() || f.phone.value.length < 10) { showError(f.phone, 'Valid phone required'); valid = false; }
+    if (f.password.value.length < 6) { showError(f.password, 'Min 6 chars required'); valid = false; }
+
+    if (!valid) return;
+
+    const btn = f.querySelector('button[type="submit"]');
+    const txt = btn.innerText;
+    btn.innerText = "Creating..."; btn.disabled = true;
+
+    try {
+        const res = await fetch(API_URL, {
+            method: 'POST',
+            body: JSON.stringify({
+                action: 'registerUser',
+                payload: {
+                    fullName: f.fullName.value,
+                    email: f.email.value.trim(),
+                    phone: f.phone.value,
+                    password: f.password.value
+                }
+            })
+        }).then(r => r.json());
+
+        if (res.success) {
+            alert('Account Created! Please Login.');
+            switchAuth('login');
+        } else {
+            if (res.message.toLowerCase().includes('email')) showError(f.email, res.message);
+            else showError(f.fullName, res.message);
+        }
+    } catch (e) { showError(f.fullName, "Connection Error"); }
+    btn.innerText = txt; btn.disabled = false;
+}
+
+// --- FORGOT PASSWORD ---
+function openForgotPass() { switchAuth('forgot'); }
+
+async function handleForgotPass(e) {
+    e.preventDefault();
+    const f = e.target;
+    if (!f.email.value.trim()) { showError(f.email, 'Email is required'); return; }
+
+    const btn = f.querySelector('button');
+    const txt = btn.innerText;
+    btn.innerText = "Sending..."; btn.disabled = true;
+
+    try {
+        const res = await fetch(API_URL, {
+            method: 'POST',
+            body: JSON.stringify({ action: 'forgotPassword', payload: { email: f.email.value.trim() } })
+        }).then(r => r.json());
+
+        if (res.success) {
+            alert("OTP sent to your email (Valid for 15 mins). Check Spam/Inbox.");
+            switchAuth('login');
+        } else {
+            showError(f.email, res.message || "User not found");
+        }
+    } catch (e) { showError(f.email, "Network Error"); }
     btn.innerText = txt; btn.disabled = false;
 }
 
@@ -604,6 +746,13 @@ function addToCartFromModal() {
         AppState.cart.push(item);
     }
     saveCart();
+
+    // Auto-open Cart Drawer
+    const drawer = document.getElementById('cartDrawer');
+    if (drawer && drawer.classList.contains('translate-x-full')) {
+        toggleCart();
+    }
+
     document.getElementById('addSuccessMsg').classList.remove('hidden');
     setTimeout(() => document.getElementById('addSuccessMsg').classList.add('hidden'), 3000);
 }
@@ -664,7 +813,11 @@ function updCart(i, d) {
     const c = AppState.cart[i];
     if (c.qty + d > 0 && c.qty + d <= c.maxQty) { c.qty += d; saveCart(); }
 }
-function rmCart(i) { if (confirm('Remove item?')) { AppState.cart.splice(i, 1); saveCart(); } }
+function rmCart(i) {
+    // Removed native confirm for better UX
+    AppState.cart.splice(i, 1);
+    saveCart();
+}
 
 // --- CHECKOUT LOGIC ---
 let deliveryMethod = 'delivery'; // 'delivery' or 'pickup'
@@ -808,11 +961,13 @@ function setDeliveryMethod_OLD(method) {
 }
 
 // --- ZONE LOGIC ---
+// --- ZONE LOGIC ---
 function initZoneDropdowns() {
     const locs = AppState.locations || [];
     if (locs.length === 0) { console.warn("No Location Data"); return; }
     const regSel = document.getElementById('chkRegion');
-    const uniqueRegions = [...new Set(locs.map(l => l[0]))].filter(r => r && r !== "Region");
+    // Use l.Region
+    const uniqueRegions = [...new Set(locs.map(l => l.Region))].filter(r => r && r !== "Region");
     regSel.innerHTML = '<option value="">Select Region</option>';
     uniqueRegions.forEach(r => {
         const opt = document.createElement('option');
@@ -829,8 +984,9 @@ function onRegionChange() {
     townSel.innerHTML = '<option value="">Select Town/City</option>';
     document.getElementById('chkArea').innerHTML = '<option value="">Select Area first</option>';
     if (!reg) return;
-    const locs = AppState.locations.filter(l => l[0] === reg);
-    const uniqueTowns = [...new Set(locs.map(l => l[1]))];
+    const locs = AppState.locations.filter(l => l.Region === reg);
+    // Use l.Town_City
+    const uniqueTowns = [...new Set(locs.map(l => l.Town_City))];
     uniqueTowns.forEach(t => {
         const opt = document.createElement('option');
         opt.value = t; opt.innerText = t;
@@ -844,11 +1000,12 @@ function onTownChange() {
     const areaSel = document.getElementById('chkArea');
     areaSel.innerHTML = '<option value="">Select Area/Locality</option>';
     if (!town) return;
-    const locs = AppState.locations.filter(l => l[0] === reg && l[1] === town);
+    // Use l.Town_City
+    const locs = AppState.locations.filter(l => l.Region === reg && l.Town_City === town);
     locs.forEach(l => {
         const opt = document.createElement('option');
-        const price = l[3];
-        const areaName = l[2];
+        const price = l.Delivery_Price; // Use l.Delivery_Price
+        const areaName = l.Area_Locality; // Use l.Area_Locality
         opt.value = `${areaName}|${price}`;
         opt.innerText = `${areaName} (GH₵${price})`;
         areaSel.appendChild(opt);
@@ -890,13 +1047,13 @@ function initMap() {
         document.getElementById('checkoutMap').innerHTML = `<div class='p-4 text-center text-red-500'>Google Maps API Key Missing.<br>Please contact admin.</div>`;
         return;
     }
-
+ 
     // Check if script already loaded
     if (window.google && window.google.maps) {
         loadMapComponents();
         return;
     }
-
+ 
     // Load Script Dynamically
     const script = document.createElement("script");
     script.src = `https://maps.googleapis.com/maps/api/js?key=${key}&libraries=places,geometry&callback=loadMapComponents`;
@@ -904,24 +1061,24 @@ function initMap() {
     script.defer = true;
     document.head.appendChild(script);
 }
-
+ 
 window.loadMapComponents = function () {
     const storeLoc = AppState.config['STORE_LATLNG'] || "5.6037,-0.1870"; // Default Accra
     const [lat, lng] = storeLoc.split(',').map(Number);
     const storePosition = { lat, lng };
-
+ 
     if (!document.getElementById("checkoutMap")) return;
-
+ 
     map = new google.maps.Map(document.getElementById("checkoutMap"), {
         center: storePosition,
         zoom: 12,
         mapTypeControl: false,
         streetViewControl: false
     });
-
+ 
     // Marker for Store
     new google.maps.Marker({ position: storePosition, map, icon: 'http://maps.google.com/mapfiles/ms/icons/blue-dot.png', title: "FAYM Store" });
-
+ 
     // Autocomplete
     const input = document.getElementById("chkAddress");
     autocomplete = new google.maps.places.Autocomplete(input);
@@ -929,7 +1086,7 @@ window.loadMapComponents = function () {
     autocomplete.addListener("place_changed", () => {
         const place = autocomplete.getPlace();
         if (!place.geometry || !place.geometry.location) return;
-
+ 
         // Show on Map
         if (place.geometry.viewport) map.fitBounds(place.geometry.viewport);
         else {
@@ -937,40 +1094,40 @@ window.loadMapComponents = function () {
             map.setZoom(15);
         }
         new google.maps.Marker({ position: place.geometry.location, map });
-
+ 
         // Calculate Distance
         const distMeters = google.maps.geometry.spherical.computeDistanceBetween(
             new google.maps.LatLng(storePosition),
             place.geometry.location
         );
         userDistanceKm = distMeters / 1000;
-
+ 
         // Calculate Fee
         const base = Number(AppState.config['DELIVERY_BASE_FEE'] || 20);
         const rate = Number(AppState.config['DELIVERY_PER_KM'] || 5);
         deliveryFee = Math.ceil(base + (userDistanceKm * rate));
-
+ 
         updateCheckoutTotals();
     });
 }
-
+ 
 function updateCheckoutTotals() {
     const subtotal = AppState.cart.reduce((sum, i) => sum + (i.price * i.qty), 0);
     const fee = deliveryMethod === 'delivery' ? deliveryFee : 0;
     const total = subtotal + fee;
-
+ 
     document.getElementById('chkSubtotal').innerText = `${AppState.currency}${subtotal}`;
     document.getElementById('chkDeliveryFee').innerText = fee > 0 ? `${AppState.currency}${fee}` : 'Free';
     document.getElementById('chkTotal').innerText = `${AppState.currency}${total}`;
     document.getElementById('payBtn').innerHTML = `<i class="bi bi-credit-card"></i> <span>Pay Now ${AppState.currency}${total}</span>`;
-
+ 
     if (deliveryMethod === 'delivery' && fee > 0) {
         document.getElementById('chkDistanceInfo').innerText = `Distance: ${userDistanceKm.toFixed(1)} km`;
     } else {
         document.getElementById('chkDistanceInfo').innerText = '';
     }
 }
-
+ 
 */
 // --- PAYSTACK PAYMENT ---
 function processPayment() {
@@ -994,6 +1151,39 @@ function processPayment() {
 
     // Open Paystack
     const paystackKey = AppState.config['PAYSTACK_PUBLIC_KEY'];
+
+    // --- TEST MODE (Localhost/File) ---
+    if (window.location.protocol === 'file:' || AppState.config['TEST_MODE']) {
+        console.log("Test Mode: Bypassing Paystack");
+        const mockRef = "TEST_" + new Date().getTime();
+        const orderPayload = {
+            storeName: "FAYM",
+            customerName: name,
+            phone: phone,
+            location: address,
+            deliveryMethod: deliveryMethod,
+            paymentMethod: "Paystack (Test)",
+            grandTotal: total,
+            items: AppState.cart.map(c => ({
+                sku_id: c.sku,
+                item_name: c.product_name,
+                size: c.size,
+                qty: c.qty,
+                price: c.price
+            })),
+            paymentReference: mockRef
+        };
+        // Simulated Backend Call
+        alert(`Test Mode: Payment Successful!\nRef: ${mockRef}\nSimulating Order Processing...`);
+        setTimeout(() => {
+            alert("Order Confirmed! Your Order ID: " + mockRef);
+            closeCheckout();
+            AppState.cart = [];
+            saveCart();
+        }, 1000);
+        return;
+    }
+
     if (!paystackKey) {
         alert("Paystack Public Key Missing in Config. Cannot process payment.");
         return;

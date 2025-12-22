@@ -354,24 +354,74 @@
             <div id="authForms">
                 <div id="loginForm">
                     <h2 class="text-2xl font-serif mb-6 text-center">Welcome Back</h2>
-                    <form onsubmit="handleLogin(event)" class="space-y-4">
-                        <input type="email" name="email" placeholder="Email" required class="w-full p-3 border rounded">
-                        <input type="password" name="password" placeholder="Password" required
-                            class="w-full p-3 border rounded">
+                    <form onsubmit="handleLogin(event)" class="space-y-4" novalidate>
+                        <div>
+                            <input type="email" name="email" placeholder="Email"
+                                class="w-full p-3 border rounded focus:outline-none focus:border-black transition"
+                                oninput="clearError(this)">
+                            <p class="text-red-500 text-xs mt-1 hidden error-msg"></p>
+                        </div>
+                        <div>
+                            <input type="password" name="password" placeholder="Password"
+                                class="w-full p-3 border rounded focus:outline-none focus:border-black transition"
+                                oninput="clearError(this)">
+                            <p class="text-red-500 text-xs mt-1 hidden error-msg"></p>
+                        </div>
+                        <div class="flex justify-end">
+                            <button type="button" onclick="openForgotPass()"
+                                class="text-xs text-gray-500 hover:text-black">Forgot Password?</button>
+                        </div>
                         <button type="submit" class="w-full bg-black text-white py-3 rounded font-bold">Log In</button>
                     </form>
                     <p class="mt-4 text-center text-sm text-gray-500">No account? <button
                             onclick="switchAuth('register')" class="text-black underline font-bold">Sign Up</button></p>
                 </div>
+                <!-- Forgot Password Form -->
+                <div id="forgotForm" class="hidden">
+                    <h2 class="text-2xl font-serif mb-6 text-center">Reset Password</h2>
+                    <p class="text-sm text-gray-500 text-center mb-4">Enter your email to receive a One-Time Password
+                        (OTP).</p>
+                    <form onsubmit="handleForgotPass(event)" class="space-y-4" novalidate>
+                        <div>
+                            <input type="email" name="email" placeholder="Email Address"
+                                class="w-full p-3 border rounded focus:outline-none focus:border-black transition"
+                                oninput="clearError(this)">
+                            <p class="text-red-500 text-xs mt-1 hidden error-msg"></p>
+                        </div>
+                        <button type="submit" class="w-full bg-black text-white py-3 rounded font-bold">Send
+                            OTP</button>
+                    </form>
+                    <p class="mt-4 text-center text-sm text-gray-500"><button onclick="switchAuth('login')"
+                            class="text-gray-500 hover:text-black">Back to Login</button></p>
+                </div>
+
                 <div id="registerForm" class="hidden">
                     <h2 class="text-2xl font-serif mb-6 text-center">Create Account</h2>
-                    <form onsubmit="handleRegister(event)" class="space-y-4">
-                        <input type="text" name="fullName" placeholder="Name" required
-                            class="w-full p-3 border rounded">
-                        <input type="email" name="email" placeholder="Email" required class="w-full p-3 border rounded">
-                        <input type="tel" name="phone" placeholder="Phone" required class="w-full p-3 border rounded">
-                        <input type="password" name="password" placeholder="Password (Min 6)" required minlength="6"
-                            class="w-full p-3 border rounded">
+                    <form onsubmit="handleRegister(event)" class="space-y-4" novalidate>
+                        <div>
+                            <input type="text" name="fullName" placeholder="Name"
+                                class="w-full p-3 border rounded focus:outline-none focus:border-black transition"
+                                oninput="clearError(this)">
+                            <p class="text-red-500 text-xs mt-1 hidden error-msg"></p>
+                        </div>
+                        <div>
+                            <input type="email" name="email" placeholder="Email"
+                                class="w-full p-3 border rounded focus:outline-none focus:border-black transition"
+                                oninput="clearError(this)">
+                            <p class="text-red-500 text-xs mt-1 hidden error-msg"></p>
+                        </div>
+                        <div>
+                            <input type="tel" name="phone" placeholder="Phone"
+                                class="w-full p-3 border rounded focus:outline-none focus:border-black transition"
+                                oninput="clearError(this)">
+                            <p class="text-red-500 text-xs mt-1 hidden error-msg"></p>
+                        </div>
+                        <div>
+                            <input type="password" name="password" placeholder="Password (Min 6)"
+                                class="w-full p-3 border rounded focus:outline-none focus:border-black transition"
+                                oninput="clearError(this)">
+                            <p class="text-red-500 text-xs mt-1 hidden error-msg"></p>
+                        </div>
                         <div id="regError" class="hidden text-red-500 text-xs text-center"></div>
                         <button type="submit" class="w-full bg-black text-white py-3 rounded font-bold">Sign Up</button>
                     </form>
@@ -385,45 +435,67 @@
     <!-- PROFILE MODAL -->
     <div id="profileModal" class="fixed inset-0 z-[90] hidden items-center justify-center p-4">
         <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closeProfile()"></div>
-        <div class="bg-white w-full max-w-md rounded-2xl p-8 z-10 relative shadow-2xl">
+        <div class="bg-white w-full max-w-md max-h-[90vh] overflow-y-auto rounded-2xl p-8 z-10 relative shadow-2xl">
             <div class="flex justify-between items-center mb-6">
                 <h2 class="text-2xl font-serif">My Profile</h2>
                 <button onclick="closeProfile()" class="text-2xl hover:text-gray-500">&times;</button>
             </div>
-            <form onsubmit="handleUpdateProfile(event)" class="space-y-4">
-                <div>
-                    <label class="block text-sm font-bold text-gray-700 mb-1">Full Name</label>
-                    <input type="text" id="profName" required class="w-full p-3 border rounded bg-gray-50">
-                </div>
-                <div>
-                    <label class="block text-sm font-bold text-gray-700 mb-1">Email</label>
-                    <input type="email" id="profEmail" disabled
-                        class="w-full p-3 border rounded bg-gray-100 text-gray-500 cursor-not-allowed">
-                </div>
-                <div>
-                    <label class="block text-sm font-bold text-gray-700 mb-1">Phone</label>
-                    <input type="tel" id="profPhone" required class="w-full p-3 border rounded bg-gray-50">
-                </div>
 
-                <div class="border-t pt-4 mt-4">
-                    <h3 class="font-bold text-sm text-gray-900 mb-3">Change Password (Optional)</h3>
-                    <div class="space-y-3">
-                        <input type="password" id="profCurrPass" placeholder="Current Password"
-                            class="w-full p-3 border rounded bg-gray-50 text-sm">
-                        <input type="password" id="profNewPass" placeholder="New Password"
-                            class="w-full p-3 border rounded bg-gray-50 text-sm">
-                        <input type="password" id="profRepPass" placeholder="Repeat New Password"
-                            class="w-full p-3 border rounded bg-gray-50 text-sm">
+            <!-- TABS -->
+            <div class="flex gap-4 border-b border-gray-200 mb-6">
+                <button onclick="switchProfileTab('details')" id="tabDetails"
+                    class="pb-2 text-sm font-bold border-b-2 border-black transition">Details</button>
+                <button onclick="switchProfileTab('orders')" id="tabOrders"
+                    class="pb-2 text-sm font-bold text-gray-400 border-b-2 border-transparent hover:text-gray-600 transition">Order
+                    History</button>
+            </div>
+
+            <!-- DETAILS TAB -->
+            <div id="paneDetails">
+                <form onsubmit="handleUpdateProfile(event)" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-1">Full Name</label>
+                        <input type="text" id="profName" required class="w-full p-3 border rounded bg-gray-50 text-sm">
                     </div>
-                </div>
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-1">Email</label>
+                        <input type="email" id="profEmail" disabled
+                            class="w-full p-3 border rounded bg-gray-100 text-gray-500 cursor-not-allowed text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-1">Phone</label>
+                        <input type="tel" id="profPhone" required class="w-full p-3 border rounded bg-gray-50 text-sm">
+                    </div>
 
-                <button type="submit"
-                    class="w-full bg-black text-white py-3 rounded font-bold hover:bg-gray-800 transition">Save
-                    Changes</button>
-            </form>
-            <div class="mt-6 pt-6 border-t">
-                <button onclick="logoutUser()"
-                    class="w-full py-3 text-red-600 font-bold hover:bg-red-50 rounded transition">Log Out</button>
+                    <div class="border-t pt-4 mt-4">
+                        <h3 class="font-bold text-sm text-gray-900 mb-3">Change Password (Optional)</h3>
+                        <div class="space-y-3">
+                            <input type="password" id="profCurrPass" placeholder="Current Password"
+                                class="w-full p-3 border rounded bg-gray-50 text-sm">
+                            <input type="password" id="profNewPass" placeholder="New Password"
+                                class="w-full p-3 border rounded bg-gray-50 text-sm">
+                            <input type="password" id="profRepPass" placeholder="Repeat New Password"
+                                class="w-full p-3 border rounded bg-gray-50 text-sm">
+                        </div>
+                    </div>
+
+                    <button type="submit"
+                        class="w-full bg-black text-white py-3 rounded font-bold hover:bg-gray-800 transition">Save
+                        Changes</button>
+                </form>
+                <div class="mt-6 pt-6 border-t">
+                    <button onclick="logoutUser()"
+                        class="w-full py-3 text-red-600 font-bold hover:bg-red-50 rounded transition">Log Out</button>
+                </div>
+            </div>
+
+            <!-- ORDERS TAB -->
+            <div id="paneOrders" class="hidden space-y-4">
+                <!-- Orders Injected Here -->
+                <div class="text-center py-8 text-gray-500">
+                    <i class="bi bi-bag-x text-4xl mb-2 block"></i>
+                    <p>No orders found.</p>
+                </div>
             </div>
         </div>
     </div>
