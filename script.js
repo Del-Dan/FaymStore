@@ -109,38 +109,40 @@ function openProfile() {
     switchProfileTab('details'); // Default tab
 }
 
-const tDet = document.getElementById('tabDetails');
-const tFav = document.getElementById('tabFavorites');
-const tOrd = document.getElementById('tabOrders');
+// --- TABS ---
+function switchProfileTab(tab) {
+    const tDet = document.getElementById('tabDetails');
+    const tFav = document.getElementById('tabFavorites');
+    const tOrd = document.getElementById('tabOrders');
 
-const pDet = document.getElementById('paneDetails');
-const pFav = document.getElementById('paneFavorites');
-const pOrd = document.getElementById('paneOrders');
+    const pDet = document.getElementById('paneDetails');
+    const pFav = document.getElementById('paneFavorites');
+    const pOrd = document.getElementById('paneOrders');
 
-// Reset All Classes
-[tDet, tFav, tOrd].forEach(t => {
-    t.className = "pb-2 text-sm font-bold text-gray-400 border-b-2 border-transparent hover:text-gray-600 transition";
-});
-[pDet, pFav, pOrd].forEach(p => p.classList.add('hidden'));
+    // Reset All Classes
+    [tDet, tFav, tOrd].forEach(t => {
+        t.className = "pb-2 text-sm font-bold text-gray-400 border-b-2 border-transparent hover:text-gray-600 transition";
+    });
+    [pDet, pFav, pOrd].forEach(p => p.classList.add('hidden'));
 
-// Activate Current
-if (tab === 'details') {
-    tDet.className = "pb-2 text-sm font-bold border-b-2 border-black transition";
-    tDet.classList.remove('text-gray-400');
-    pDet.classList.remove('hidden');
-}
-else if (tab === 'favorites') {
-    tFav.className = "pb-2 text-sm font-bold border-b-2 border-black transition";
-    tFav.classList.remove('text-gray-400');
-    pFav.classList.remove('hidden');
-    renderProfileFavorites();
-}
-else {
-    tOrd.className = "pb-2 text-sm font-bold border-b-2 border-black transition";
-    tOrd.classList.remove('text-gray-400');
-    pOrd.classList.remove('hidden');
-    loadOrderHistory();
-}
+    // Activate Current
+    if (tab === 'details') {
+        tDet.className = "pb-2 text-sm font-bold border-b-2 border-black transition";
+        tDet.classList.remove('text-gray-400');
+        pDet.classList.remove('hidden');
+    }
+    else if (tab === 'favorites') {
+        tFav.className = "pb-2 text-sm font-bold border-b-2 border-black transition";
+        tFav.classList.remove('text-gray-400');
+        pFav.classList.remove('hidden');
+        renderProfileFavorites();
+    }
+    else {
+        tOrd.className = "pb-2 text-sm font-bold border-b-2 border-black transition";
+        tOrd.classList.remove('text-gray-400');
+        pOrd.classList.remove('hidden');
+        loadOrderHistory();
+    }
 }
 
 function renderProfileFavorites() {
