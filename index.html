@@ -5,11 +5,17 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FAYM Store | Elevate Your Style</title>
+    
+    <meta property="og:title" content="FAYM Store | Elevate Your Style">
+    <meta property="og:description" content="Shop the latest premium collection. Delivery nationwide in Ghana.">
+    <meta property="og:image" content="https://res.cloudinary.com/dlfuz4ema/image/upload/f_auto,q_auto/v1766462286/2B0A0296_dx0wpf.jpg">
+    <meta property="og:type" content="website">
+
     <script src="https://cdn.tailwindcss.com"></script>
-    <link
-        href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;1,400&display=swap"
-        rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="style.css">
+
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <script src="https://js.paystack.co/v1/inline.js"></script>
 
@@ -28,12 +34,10 @@
             }
         }
     </script>
-    <link rel="stylesheet" href="style.css">
 </head>
 
-<body class="bg-white text-brand-dark font-sans antialiased">
+<body class="bg-white text-brand-dark font-sans antialiased flex flex-col min-h-screen">
 
-    <!-- HEADER -->
     <header class="fixed w-full z-50 glass transition-all duration-300">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between items-center h-20">
@@ -60,14 +64,10 @@
         </div>
     </header>
 
-    <!-- UI OVERLAYS -->
-    <!-- UI OVERLAYS -->
     <div id="searchOverlay" class="fixed inset-0 z-[60] hidden">
-        <!-- Backdrop -->
         <div id="searchBackdrop" onclick="toggleSearch()"
             class="absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity duration-300 opacity-0"></div>
 
-        <!-- Drawer -->
         <div id="searchDrawer"
             class="relative bg-white w-full shadow-2xl transform -translate-y-full transition-transform duration-300 ease-out flex flex-col items-center pt-6 pb-10 px-4 md:px-8">
             <div class="max-w-4xl w-full">
@@ -88,6 +88,14 @@
                         class="px-4 py-2 border rounded-full hover:border-black transition cursor-pointer bg-white text-sm">
                         <option value="all">All Categories</option>
                     </select>
+                    
+                    <select id="sortOrder" onchange="runSearchOrFilter()" 
+                        class="px-4 py-2 border rounded-full hover:border-black transition cursor-pointer bg-white text-sm">
+                        <option value="newest">Newest Arrivals</option>
+                        <option value="priceLow">Price: Low to High</option>
+                        <option value="priceHigh">Price: High to Low</option>
+                    </select>
+
                     <select id="filterPrice" onchange="runSearchOrFilter()"
                         class="px-4 py-2 border rounded-full hover:border-black transition cursor-pointer bg-white text-sm">
                         <option value="all">Any Price</option>
@@ -106,7 +114,6 @@
         </div>
     </div>
 
-    <!-- MAIN APP STRUCTURE -->
     <div id="heroSection" class="relative h-[85vh] w-full overflow-hidden bg-gray-100">
         <div id="sliderContainer" class="absolute inset-0 w-full h-full"></div>
         <div
@@ -131,7 +138,7 @@
         </section>
     </div>
 
-    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 flex-1 w-full">
         <div class="flex justify-between items-end mb-12">
             <div>
                 <span class="text-xs font-bold tracking-widest text-brand-accent uppercase mb-2 block">Collection</span>
@@ -150,7 +157,6 @@
         </div>
     </main>
 
-    <!-- MODALS & DRAWERS -->
     <div id="cartDrawer"
         class="fixed inset-y-0 right-0 w-full sm:w-[400px] bg-white shadow-2xl z-[70] transform translate-x-full transition-transform duration-300 flex flex-col">
         <div class="p-6 border-b flex justify-between items-center bg-gray-50">
@@ -168,7 +174,6 @@
         class="fixed inset-0 bg-black/50 z-[65] hidden transition-opacity opacity-0"></div>
 
     <div id="productModal" class="fixed inset-0 z-[80] hidden items-center justify-center p-4">
-        <!-- ... (Existing Product Modal Content) ... -->
         <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" onclick="closeModal()"></div>
         <div
             class="bg-white w-full max-w-5xl rounded-2xl overflow-hidden shadow-2xl z-10 relative flex flex-col md:flex-row max-h-[90vh]">
@@ -177,14 +182,12 @@
                     class="bi bi-x-lg"></i></button>
             <div class="w-full md:w-1/2 bg-gray-100 relative h-[40vh] md:h-auto group">
                 <img id="modalImg" src="" class="w-full h-full object-cover">
-                <!-- Gallery Nav Overlay -->
                 <button onclick="changeGalleryImage(-1)"
                     class="absolute left-2 top-1/2 -translate-y-1/2 bg-white/80 p-2 rounded-full hover:bg-white transition hidden"
                     id="galleryPrevBtn"><i class="bi bi-chevron-left"></i></button>
                 <button onclick="changeGalleryImage(1)"
                     class="absolute right-2 top-1/2 -translate-y-1/2 bg-white/80 p-2 rounded-full hover:bg-white transition hidden"
                     id="galleryNextBtn"><i class="bi bi-chevron-right"></i></button>
-                <!-- Thumbnails Overlay (Bottom) -->
                 <div id="galleryThumbnails"
                     class="absolute bottom-4 left-0 right-0 flex justify-center gap-2 px-4 overflow-x-auto scrollbar-hide py-2">
                 </div>
@@ -225,7 +228,6 @@
         </div>
     </div>
 
-    <!-- CHECKOUT MODAL -->
     <div id="checkoutModal" class="fixed inset-0 z-[85] hidden items-center justify-center p-4">
         <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" onclick="closeCheckout()"></div>
         <div
@@ -234,11 +236,9 @@
                 class="absolute top-4 right-4 z-20 bg-white/50 p-2 rounded-full hover:bg-white transition"><i
                     class="bi bi-x-lg"></i></button>
 
-            <!-- LEFT: Delivery/Pickup Details -->
             <div class="w-full md:w-3/5 p-8 overflow-y-auto bg-gray-50">
                 <h2 class="text-3xl font-serif mb-6">Checkout</h2>
 
-                <!-- Method Selection -->
                 <div class="flex gap-4 border-b border-gray-200 mb-6">
                     <button onclick="setDeliveryMethod('delivery')" id="tabDelivery"
                         class="pb-2 text-lg font-bold border-b-2 border-black transition">Delivery Service</button>
@@ -247,7 +247,6 @@
                         Pickup</button>
                 </div>
 
-                <!-- Contact Info -->
                 <div class="mb-6 space-y-4">
                     <h3 class="font-bold text-sm uppercase tracking-wide text-gray-500">Contact Information</h3>
                     <div class="grid grid-cols-2 gap-4">
@@ -258,8 +257,6 @@
                     </div>
                 </div>
 
-                <!-- Delivery Content -->
-                <!-- Delivery Content (Zone Based) -->
                 <div id="paneDelivery">
                     <label class="block text-xs uppercase font-bold text-gray-500 mb-1 mt-4">Delivery Location (Select
                         Region First)</label>
@@ -285,7 +282,6 @@
                         class="w-full p-3 border rounded bg-gray-50 focus:outline-none focus:border-black h-24"></textarea>
                 </div>
 
-                <!-- Pickup Content -->
                 <div id="panePickup" class="hidden">
                     <h3 class="font-bold text-sm uppercase tracking-wide text-gray-500 mb-2">Pickup Location</h3>
                     <div class="bg-black text-white p-6 rounded-lg mb-4">
@@ -295,7 +291,6 @@
                     </div>
                 </div>
 
-                <!-- Date Estimate -->
                 <div class="bg-blue-50 text-blue-800 p-4 rounded-lg flex gap-3 items-start">
                     <i class="bi bi-calendar-check mt-1"></i>
                     <div>
@@ -305,12 +300,10 @@
                 </div>
             </div>
 
-            <!-- RIGHT: Order Summary -->
             <div class="w-full md:w-2/5 p-8 bg-white border-l border-gray-100 flex flex-col">
                 <h3 class="font-bold text-lg mb-4">Order Summary</h3>
                 <div id="chkItems" class="flex-1 overflow-y-auto space-y-4 mb-4 pr-2 max-h-[300px]">
-                    <!-- Items injected here -->
-                </div>
+                    </div>
 
                 <div class="space-y-2 border-t pt-4 text-sm">
                     <div class="flex justify-between"><span>Subtotal</span><span id="chkSubtotal"
@@ -376,7 +369,6 @@
                     <p class="mt-4 text-center text-sm text-gray-500">No account? <button
                             onclick="switchAuth('register')" class="text-black underline font-bold">Sign Up</button></p>
                 </div>
-                <!-- Forgot Password Form -->
                 <div id="forgotForm" class="hidden">
                     <h2 class="text-2xl font-serif mb-6 text-center">Reset Password</h2>
                     <p class="text-sm text-gray-500 text-center mb-4">Enter your email to receive a One-Time Password
@@ -432,7 +424,6 @@
         </div>
     </div>
 
-    <!-- PROFILE MODAL -->
     <div id="profileModal" class="fixed inset-0 z-[90] hidden items-center justify-center p-4">
         <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closeProfile()"></div>
         <div class="bg-white w-full max-w-md max-h-[90vh] overflow-y-auto rounded-2xl p-8 z-10 relative shadow-2xl">
@@ -441,7 +432,6 @@
                 <button onclick="closeProfile()" class="text-2xl hover:text-gray-500">&times;</button>
             </div>
 
-            <!-- TABS -->
             <div class="flex gap-4 border-b border-gray-200 mb-6">
                 <button onclick="switchProfileTab('details')" id="tabDetails"
                     class="pb-2 text-sm font-bold border-b-2 border-black transition">Details</button>
@@ -450,7 +440,6 @@
                     History</button>
             </div>
 
-            <!-- DETAILS TAB -->
             <div id="paneDetails">
                 <form onsubmit="handleUpdateProfile(event)" class="space-y-4">
                     <div>
@@ -489,9 +478,7 @@
                 </div>
             </div>
 
-            <!-- ORDERS TAB -->
             <div id="paneOrders" class="hidden space-y-4">
-                <!-- Orders Injected Here -->
                 <div class="text-center py-8 text-gray-500">
                     <i class="bi bi-bag-x text-4xl mb-2 block"></i>
                     <p>No orders found.</p>
@@ -504,46 +491,45 @@
         class="fixed bottom-6 right-6 bg-[#25D366] text-white p-4 rounded-full shadow-2xl z-40 hover:scale-110 transition flex items-center justify-center"><i
             class="bi bi-whatsapp text-2xl"></i></a>
 
-    <script src="script.js"></script>
-
     <footer class="bg-brand-dark text-white py-12 mt-auto border-t border-gray-800">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
-            <div>
-                <h2 class="text-2xl font-serif font-bold mb-4">FAYM</h2>
-                <p class="text-gray-400 text-sm leading-relaxed max-w-xs">
-                    Elevating everyday style with premium quality essentials. Designed for the modern individual.
-                </p>
-            </div>
-            <div>
-                <h3 class="font-bold text-sm uppercase tracking-wider mb-4 text-brand-accent">Customer Care</h3>
-                <ul class="space-y-2 text-sm text-gray-400">
-                    <li><button onclick="openSizeGuideModal()" class="hover:text-white transition">Size Guide</button></li>
-                    <li><button onclick="toggleCart()" class="hover:text-white transition">My Cart</button></li>
-                    <li><button onclick="handleAuthClick()" class="hover:text-white transition">My Account</button></li>
-                </ul>
-            </div>
-            <div>
-                <h3 class="font-bold text-sm uppercase tracking-wider mb-4 text-brand-accent">Connect</h3>
-                <div class="flex gap-4 mb-4">
-                    <a href="#" class="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center hover:bg-brand-accent hover:text-brand-dark transition"><i class="bi bi-instagram"></i></a>
-                    <a href="#" class="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center hover:bg-brand-accent hover:text-brand-dark transition"><i class="bi bi-twitter-x"></i></a>
-                    <a href="https://wa.me/233535284878" class="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center hover:bg-brand-accent hover:text-brand-dark transition"><i class="bi bi-whatsapp"></i></a>
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
+                <div>
+                    <h2 class="text-2xl font-serif font-bold mb-4">FAYM</h2>
+                    <p class="text-gray-400 text-sm leading-relaxed max-w-xs">
+                        Elevating everyday style with premium quality essentials. Designed for the modern individual.
+                    </p>
                 </div>
-                <p class="text-xs text-gray-500">Accra, Ghana</p>
+                <div>
+                    <h3 class="font-bold text-sm uppercase tracking-wider mb-4 text-brand-accent">Customer Care</h3>
+                    <ul class="space-y-2 text-sm text-gray-400">
+                        <li><button onclick="openSizeGuideModal()" class="hover:text-white transition">Size Guide</button></li>
+                        <li><button onclick="toggleCart()" class="hover:text-white transition">My Cart</button></li>
+                        <li><button onclick="handleAuthClick()" class="hover:text-white transition">My Account</button></li>
+                    </ul>
+                </div>
+                <div>
+                    <h3 class="font-bold text-sm uppercase tracking-wider mb-4 text-brand-accent">Connect</h3>
+                    <div class="flex gap-4 mb-4">
+                        <a href="#" class="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center hover:bg-brand-accent hover:text-brand-dark transition"><i class="bi bi-instagram"></i></a>
+                        <a href="#" class="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center hover:bg-brand-accent hover:text-brand-dark transition"><i class="bi bi-twitter-x"></i></a>
+                        <a href="https://wa.me/233535284878" class="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center hover:bg-brand-accent hover:text-brand-dark transition"><i class="bi bi-whatsapp"></i></a>
+                    </div>
+                    <p class="text-xs text-gray-500">Accra, Ghana</p>
+                </div>
+            </div>
+            <div class="border-t border-gray-800 pt-8 flex flex-col md:flex-row justify-between items-center text-xs text-gray-500">
+                <p>&copy; 2025 FAYM Store. All rights reserved.</p>
+                <div class="flex gap-4 mt-4 md:mt-0">
+                    <span>Terms</span>
+                    <span>Privacy</span>
+                    <span>Returns</span>
+                </div>
             </div>
         </div>
-        <div class="border-t border-gray-800 pt-8 flex flex-col md:flex-row justify-between items-center text-xs text-gray-500">
-            <p>&copy; 2025 FAYM Store. All rights reserved.</p>
-            <div class="flex gap-4 mt-4 md:mt-0">
-                <span>Terms</span>
-                <span>Privacy</span>
-                <span>Returns</span>
-            </div>
-        </div>
-    </div>
-</footer>
-    
+    </footer>
+
+    <script src="script.js"></script>
 </body>
 
 </html>
