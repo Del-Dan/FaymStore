@@ -57,56 +57,20 @@ async function initApp() {
         AppState.locations = res.locations; // Capture locations from API
         finalizeInit();
     } catch (e) {
-        console.warn("API Init failed, using mock data for testing", e);
-        // Mock Data for Testing
-        AppState.products = [
-            {
-                parent_code: "P001",
-                sub_code: "P001-BLK",
-                product_name: "Essential Tee",
-                category: "T-Shirt",
-                base_price: 150,
-                discount_price: 120,
-                discount_active: true,
-                main_image_url: "https://drive.google.com/file/d/1yZkwb3_jfqXfq_t1f_9ggA-w2y2_x3_3/view?usp=sharing", // Example Drive Link
-                color_name: "Black",
-                color_hex: "#000000",
-                variants: []
-            },
-            {
-                parent_code: "P002",
-                sub_code: "P002-WHT",
-                product_name: "Classic Hoodie",
-                category: "Hoodie",
-                base_price: 300,
-                discount_price: 0,
-                discount_active: false,
-                main_image_url: "https://drive.google.com/open?id=1yZkwb3_jfqXfq_t1f_9ggA-w2y2_x3_3", // Alternate Drive Link Format
-                color_name: "White",
-                color_hex: "#ffffff",
-                variants: []
-            }
-        ];
-        AppState.inventory = [
-            { sub_code: "P001-BLK", size: "M", stock_qty: 10, sku_id: "SKU1" },
-            { sub_code: "P002-WHT", size: "L", stock_qty: 5, sku_id: "SKU2" }
-        ];
-        AppState.config = {
-            hero_slide_1_url: 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?q=80&w=2070&auto=format&fit=crop',
-            hero_slide_1_type: 'image',
-            hero_slide_1_text: 'Elevate Your Style',
-            hero_slide_1_subtext: 'Premium collection for the modern individual.',
-            hero_slide_2_url: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4',
-            hero_slide_2_type: 'video',
-            hero_slide_2_text: 'Experience Freedom',
-            hero_slide_2_subtext: '',
-            hero_slide_3_url: 'https://images.unsplash.com/photo-1483985988355-763728e1935b?q=80&w=2070&auto=format&fit=crop',
-            hero_slide_3_type: 'image',
-            hero_slide_3_text: 'Latest Drops',
-            hero_slide_3_subtext: 'Shop the new season favorites.'
-        };
-        finalizeInit();
-    }
+    console.error("Critical Init Error", e);
+    // Show a user-friendly error screen instead of fake products
+    document.getElementById('productGrid').innerHTML = `
+        <div class="col-span-full py-20 text-center">
+            <i class="bi bi-wifi-off text-6xl text-gray-300 mb-4 block"></i>
+            <h2 class="text-xl font-bold text-gray-800">Connection Failed</h2>
+            <p class="text-gray-500 mb-6">We couldn't load the store. Please check your internet.</p>
+            <button onclick="window.location.reload()" class="bg-black text-white px-6 py-2 rounded-full font-bold hover:bg-gray-800 transition">Retry</button>
+        </div>
+    `;
+    // Hide sections that look broken without data
+    document.getElementById('heroSection').style.display = 'none';
+    document.getElementById('latestDropsSection').style.display = 'none';
+}
 }
 
 function finalizeInit() {
