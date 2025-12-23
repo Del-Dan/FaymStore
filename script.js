@@ -43,7 +43,7 @@ async function initApp() {
     checkSession();
     try {
         const res = await fetch(`${API_URL}?action=getStoreData`).then(r => r.json());
-        
+
         // Data Transformation
         AppState.products = res.products.map(p => ({
             ...p,
@@ -51,13 +51,13 @@ async function initApp() {
             discount_price: Number(p.discount_price),
             is_new: String(p.is_new).toUpperCase() === 'TRUE'
         }));
-        
+
         AppState.inventory = res.inventory;
         AppState.config = res.config;
         AppState.locations = res.locations;
-        
+
         finalizeInit();
-        
+
     } catch (e) {
         console.error("Critical Init Error", e);
         // User-friendly error screen (No Mock Data for Production)
@@ -105,23 +105,67 @@ function openProfile() {
 function switchProfileTab(tab) {
     const tDet = document.getElementById('tabDetails');
     const tOrd = document.getElementById('tabOrders');
+    const tWish = document.getElementById('tabWishlist');
+
     const pDet = document.getElementById('paneDetails');
     const pOrd = document.getElementById('paneOrders');
+    const pWish = document.getElementById('paneWishlist');
 
+    // Reset All
+    [tDet, tOrd, tWish].forEach(t => t.className = "pb-2 text-sm font-bold text-gray-400 border-b-2 border-transparent hover:text-gray-600 transition");
+    [pDet, pOrd, pWish].forEach(p => p.classList.add('hidden'));
+
+    // Activate
     if (tab === 'details') {
         tDet.className = "pb-2 text-sm font-bold border-b-2 border-black transition";
         tDet.classList.remove('text-gray-400');
-        tOrd.className = "pb-2 text-sm font-bold text-gray-400 border-b-2 border-transparent hover:text-gray-600 transition";
         pDet.classList.remove('hidden');
-        pOrd.classList.add('hidden');
-    } else {
+    } else if (tab === 'orders') {
         tOrd.className = "pb-2 text-sm font-bold border-b-2 border-black transition";
         tOrd.classList.remove('text-gray-400');
-        tDet.className = "pb-2 text-sm font-bold text-gray-400 border-b-2 border-transparent hover:text-gray-600 transition";
         pOrd.classList.remove('hidden');
-        pDet.classList.add('hidden');
         loadOrderHistory();
+    } else if (tab === 'wishlist') {
+        tWish.className = "pb-2 text-sm font-bold border-b-2 border-black transition";
+        tWish.classList.remove('text-gray-400');
+        pWish.classList.remove('hidden');
+        renderWishlist();
     }
+}
+
+function renderWishlist() {
+    const div = document.getElementById('paneWishlist');
+    div.innerHTML = '';
+
+    // Filter Products
+    const likedCodes = AppState.favorites;
+    // Find variants that match sub_code
+    // Issue: AppState.products list variants individually? No, grouped by parent usually in UI?
+    // Actually AppState.products is raw list of ALL variants.
+
+    const likedProds = AppState.products.filter(p => likedCodes.includes(p.sub_code));
+
+    if (likedProds.length === 0) {
+        div.innerHTML = `<div class="col-span-2 text-center py-8 text-gray-500"><i class="bi bi-heart text-4xl mb-2 block"></i><p>No favorites yet.</p></div>`;
+        return;
+    }
+
+    likedProds.forEach(p => {
+        // Mini Card
+        const el = document.createElement('div');
+        el.className = "border rounded cursor-pointer hover:shadow-md transition bg-white";
+        el.onclick = () => { closeProfile(); openProductModal(p); };
+        el.innerHTML = `
+            <div class="aspect-[4/5] bg-gray-100 mb-2 overflow-hidden">
+                <img src="${formatImage(p.main_image_url)}" class="w-full h-full object-cover">
+            </div>
+            <div class="px-2 pb-2">
+                <h4 class="font-bold text-xs line-clamp-1">${p.product_name}</h4>
+                <div class="text-xs text-gray-500">${AppState.currency}${p.discount_active ? p.discount_price : p.base_price}</div>
+            </div>
+        `;
+        div.appendChild(el);
+    });
 }
 
 async function loadOrderHistory() {
@@ -131,7 +175,7 @@ async function loadOrderHistory() {
     try {
         const res = await fetch(API_URL, {
             method: 'POST',
-            body: JSON.stringify({ action: 'getOrderHistory', payload: { phone: AppState.user.phone } }) 
+            body: JSON.stringify({ action: 'getOrderHistory', payload: { phone: AppState.user.phone } })
         }).then(r => r.json());
 
         if (res.success && res.orders.length > 0) {
@@ -550,7 +594,7 @@ function renderGalleryUI() {
     document.getElementById('modalImg').src = currentGallery[galleryIdx];
     const prevBtn = document.getElementById('galleryPrevBtn');
     const nextBtn = document.getElementById('galleryNextBtn');
-    
+
     if (currentGallery.length > 1) {
         prevBtn.classList.remove('hidden');
         nextBtn.classList.remove('hidden');
@@ -641,10 +685,10 @@ function renderSizes() {
         const qty = item ? item.stock_qty : 0;
         const btn = document.createElement('button');
         btn.disabled = qty <= 0;
-        
+
         if (qty > 0) {
             btn.className = "py-3 rounded border text-sm font-semibold hover:border-black hover:bg-black hover:text-white transition";
-            
+
             // LOW STOCK ALERT
             if (qty < 5) {
                 btn.innerHTML = `${sz} <span class="block text-[9px] text-red-500 font-normal leading-none mt-0.5">Left: ${qty}</span>`;
@@ -831,7 +875,7 @@ function setDeliveryMethod(method) {
         tabDel.className = "pb-2 text-lg font-bold text-gray-400 border-b-2 border-transparent hover:text-gray-600 transition";
         panePick.classList.remove('hidden');
         paneDel.classList.add('hidden');
-        deliveryFee = 0; 
+        deliveryFee = 0;
         updateCheckoutTotals();
     }
     updateCheckoutTotals();
@@ -842,7 +886,7 @@ function initZoneDropdowns() {
     const locs = AppState.locations || [];
     if (locs.length === 0) { console.warn("No Location Data"); return; }
     const regSel = document.getElementById('chkRegion');
-    
+
     const uniqueRegions = [...new Set(locs.map(l => l.Region))].filter(r => r && r !== "Region");
     regSel.innerHTML = '<option value="">Select Region</option>';
     uniqueRegions.forEach(r => {
@@ -864,7 +908,8 @@ function onRegionChange() {
     const uniqueTowns = [...new Set(locs.map(l => l.Town_City))];
     uniqueTowns.forEach(t => {
         const opt = document.createElement('option');
-        opt.value = t; opt.innerText = t;
+        const optText = t;
+        opt.value = t; opt.innerText = optText;
         townSel.appendChild(opt);
     });
 }
@@ -878,7 +923,7 @@ function onTownChange() {
     const locs = AppState.locations.filter(l => l.Region === reg && l.Town_City === town);
     locs.forEach(l => {
         const opt = document.createElement('option');
-        const price = l.Delivery_Price; 
+        const price = l.Delivery_Price;
         const areaName = l.Area_Locality;
         opt.value = `${areaName}|${price}`;
         opt.innerText = `${areaName} (GH₵${price})`;
@@ -917,18 +962,24 @@ function updateCheckoutTotals() {
 
 // --- PAYSTACK PAYMENT ---
 function processPayment() {
-    if (!AppState.user) {
-        alert("Please login to proceed.");
-        return;
-    }
-
+    // Note: Guest Checkout is allowed. We check fields, not "AppState.user".
     const name = document.getElementById('chkName').value;
     const phone = document.getElementById('chkPhone').value;
     const address = deliveryMethod === 'delivery' ? document.getElementById('chkAddress').value : "Store Pickup";
 
     if (!name || !phone || (deliveryMethod === 'delivery' && !address)) {
-        alert("Please complete all fields.");
+        showToast("Please complete all fields.", "error");
         return;
+    }
+
+    // Delivery Method Validation
+    if (deliveryMethod === 'delivery' && deliveryFee === 0) {
+        // Did they select an area?
+        const areaVal = document.getElementById('chkArea').value;
+        if (!areaVal) {
+            showToast("Please select a delivery area.", "error");
+            return;
+        }
     }
 
     const subtotal = AppState.cart.reduce((sum, i) => sum + (i.price * i.qty), 0);
@@ -937,21 +988,23 @@ function processPayment() {
 
     const paystackKey = AppState.config['PAYSTACK_PUBLIC_KEY'];
 
+    const userEmail = AppState.user ? AppState.user.email : "guest@faymstore.com";
+
     if (window.location.protocol === 'file:' || AppState.config['TEST_MODE']) {
         console.log("Test Mode: Bypassing Paystack");
-        alert("Payment Bypassed in Test Mode. Check console.");
+        showToast("Test Mode: Payment Bypassed", "success");
         return;
     }
 
     if (!paystackKey) {
-        alert("Paystack Public Key Missing in Config. Cannot process payment.");
+        showToast("System Error: Payment Config Missing", "error");
         return;
     }
 
     const handler = PaystackPop.setup({
         key: paystackKey,
-        email: AppState.user.email,
-        amount: total * 100, 
+        email: userEmail,
+        amount: total * 100,
         currency: 'GHS',
         metadata: {
             custom_fields: [
@@ -976,7 +1029,7 @@ function processPayment() {
                     qty: c.qty,
                     price: c.price // Sent for reference, but Backend will RE-VERIFY price
                 })),
-                paymentReference: response.reference 
+                paymentReference: response.reference
             };
 
             fetch(API_URL, {
@@ -986,18 +1039,18 @@ function processPayment() {
                 .then(res => res.json())
                 .then(data => {
                     if (data.success) {
-                        alert("Order Confirmed! Your Order ID: " + data.parentRef);
+                        showToast("Order Confirmed! ID: " + data.parentRef, "success");
                         closeCheckout();
                         AppState.cart = [];
                         saveCart();
                     } else {
-                        alert("Order Verification Failed: " + data.message);
+                        showToast("Failed: " + data.message, "error");
                     }
                 })
-                .catch(err => alert("Network Error: " + err));
+                .catch(err => showToast("Network Error: " + err, "error"));
         },
         onClose: function () {
-            alert('Transaction was closed.');
+            showToast('Transaction cancelled.', 'error');
         }
     });
     handler.openIframe();
@@ -1123,7 +1176,7 @@ function initHero() {
 
         setTimeout(() => {
             currEl.style.zIndex = '0';
-            currEl.style.opacity = '0'; 
+            currEl.style.opacity = '0';
             const currVid = currEl.querySelector('video');
             if (currVid) { currVid.pause(); currVid.currentTime = 0; }
 
@@ -1168,8 +1221,10 @@ function initHero() {
     };
     startCycle();
 
-    // SWIPE SUPPORT
+    // SWIPE SUPPORT -> (Existing logic remains same, just shortened for snippet context)
+    // ... (Use existing swipe logic)
     let touchStartX = 0;
+    // ... (Keep existing touch handlers intact)
     let touchStartY = 0;
     let currentDragX = 0;
     let isDragging = false;
@@ -1312,4 +1367,31 @@ function openSizeGuideModal() {
 function closeSizeGuide() {
     document.getElementById('sizeGuideModal').classList.add('hidden');
     document.getElementById('sizeGuideModal').classList.remove('flex');
+}
+
+// --- TOAST NOTIFICATIONS ---
+function showToast(msg, type = 'info') {
+    const con = document.getElementById('toastContainer');
+    const el = document.createElement('div');
+
+    // Aesthetic Styling
+    let colors = "bg-white border-gray-200 text-gray-800";
+    let icon = "bi-info-circle";
+
+    if (type === 'success') { colors = "bg-green-50 border-green-200 text-green-800"; icon = "bi-check-circle-fill"; }
+    else if (type === 'error') { colors = "bg-red-50 border-red-200 text-red-800"; icon = "bi-exclamation-circle-fill"; }
+
+    el.className = `flex items-center gap-3 px-6 py-4 rounded-lg shadow-xl border ${colors} transform translate-x-full transition-all duration-300 min-w-[300px]`;
+    el.innerHTML = `<i class="bi ${icon} text-lg"></i> <span class="font-bold text-sm">${msg}</span>`;
+
+    con.appendChild(el);
+
+    // Animate In
+    requestAnimationFrame(() => el.classList.remove('translate-x-full'));
+
+    // Remove after 4s
+    setTimeout(() => {
+        el.classList.add('translate-x-full', 'opacity-0');
+        setTimeout(() => el.remove(), 300);
+    }, 4000);
 }
