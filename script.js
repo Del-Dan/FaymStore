@@ -12,27 +12,33 @@ const AppState = {
     currency: 'GH₵'
 };
 
+// --- TOAST NOTIFICATIONS ---
+function showToast(msg, type = 'success') {
+    const container = document.getElementById('toastContainer');
+    const div = document.createElement('div');
+    const color = type === 'error' ? 'bg-red-500' : 'bg-brand-dark';
+    
+    div.className = `${color} text-white px-6 py-4 rounded shadow-2xl flex items-center gap-3 min-w-[300px] toast-enter`;
+    div.innerHTML = `<i class="bi ${type === 'error' ? 'bi-exclamation-circle' : 'bi-check-circle-fill'} text-xl"></i><span class="font-bold text-sm">${msg}</span>`;
+    
+    container.appendChild(div);
+    requestAnimationFrame(() => { div.classList.remove('toast-enter'); div.classList.add('toast-enter-active'); });
+    setTimeout(() => {
+        div.classList.remove('toast-enter-active'); div.classList.add('toast-exit-active');
+        setTimeout(() => div.remove(), 300);
+    }, 3000);
+}
+
 const formatImage = (url) => {
     if (!url) return 'https://via.placeholder.com/400x500?text=No+Image';
-
-    // --- 1. CLOUDINARY HANDLING (Speed Boost) ---
     if (url.includes('cloudinary.com')) {
-        if (url.includes('f_auto') || url.includes('q_auto')) {
-            return url;
-        }
+        if (url.includes('f_auto') || url.includes('q_auto')) return url;
         return url.replace('/upload/', '/upload/f_auto,q_auto/');
     }
-
-    // --- 2. GOOGLE DRIVE HANDLING (Legacy Support) ---
     if (url.includes('drive.google.com') || url.includes('docs.google.com')) {
-        const driveRegex = /(?:\/d\/|id=)([-\w]{25,})/;
-        const match = url.match(driveRegex);
-        if (match && match[1]) {
-            // "sz=s1000" requests high-res
-            return `https://lh3.googleusercontent.com/d/$${match[1]}=s1000`;
-        }
+        const match = url.match(/(?:\/d\/|id=)([-\w]{25,})/);
+        if (match && match[1]) return `https://lh3.googleusercontent.com/d/$${match[1]}=s1000`;
     }
-
     return url;
 };
 
@@ -43,34 +49,18 @@ async function initApp() {
     checkSession();
     try {
         const res = await fetch(`${API_URL}?action=getStoreData`).then(r => r.json());
-        
-        // Data Transformation
         AppState.products = res.products.map(p => ({
             ...p,
             base_price: Number(p.base_price),
             discount_price: Number(p.discount_price),
             is_new: String(p.is_new).toUpperCase() === 'TRUE'
         }));
-        
         AppState.inventory = res.inventory;
         AppState.config = res.config;
         AppState.locations = res.locations;
-        
         finalizeInit();
-        
     } catch (e) {
-        console.error("Critical Init Error", e);
-        // User-friendly error screen (No Mock Data for Production)
-        document.getElementById('productGrid').innerHTML = `
-            <div class="col-span-full py-20 text-center">
-                <i class="bi bi-wifi-off text-6xl text-gray-300 mb-4 block"></i>
-                <h2 class="text-xl font-bold text-gray-800">Connection Failed</h2>
-                <p class="text-gray-500 mb-6">We couldn't load the store. Please check your internet.</p>
-                <button onclick="window.location.reload()" class="bg-black text-white px-6 py-2 rounded-full font-bold hover:bg-gray-800 transition">Retry</button>
-            </div>
-        `;
-        document.getElementById('heroSection').style.display = 'none';
-        document.getElementById('latestDropsSection').style.display = 'none';
+        document.getElementById('productGrid').innerHTML = `<div class="col-span-full py-20 text-center"><h2 class="text-xl font-bold">Connection Failed</h2><button onclick="location.reload()" class="underline mt-2">Retry</button></div>`;
     }
 }
 
@@ -96,485 +86,233 @@ function openProfile() {
     if (!AppState.user) return;
     document.getElementById('profName').value = AppState.user.fullName;
     document.getElementById('profEmail').value = AppState.user.email;
-    document.getElementById('profPhone').value = AppState.user.phone || "";
+    const rawPhone = AppState.user.phone || "";
+    document.getElementById('profPhone').value = rawPhone.replace("'", ""); 
+    
     document.getElementById('profileModal').classList.remove('hidden');
     document.getElementById('profileModal').classList.add('flex');
     switchProfileTab('details');
 }
 
 function switchProfileTab(tab) {
-    const tDet = document.getElementById('tabDetails');
-    const tOrd = document.getElementById('tabOrders');
-    const pDet = document.getElementById('paneDetails');
-    const pOrd = document.getElementById('paneOrders');
+    const tabs = { details: 'tabDetails', orders: 'tabOrders', saved: 'tabSaved' };
+    const panes = { details: 'paneDetails', orders: 'paneOrders', saved: 'paneSaved' };
 
-    if (tab === 'details') {
-        tDet.className = "pb-2 text-sm font-bold border-b-2 border-black transition";
-        tDet.classList.remove('text-gray-400');
-        tOrd.className = "pb-2 text-sm font-bold text-gray-400 border-b-2 border-transparent hover:text-gray-600 transition";
-        pDet.classList.remove('hidden');
-        pOrd.classList.add('hidden');
-    } else {
-        tOrd.className = "pb-2 text-sm font-bold border-b-2 border-black transition";
-        tOrd.classList.remove('text-gray-400');
-        tDet.className = "pb-2 text-sm font-bold text-gray-400 border-b-2 border-transparent hover:text-gray-600 transition";
-        pOrd.classList.remove('hidden');
-        pDet.classList.add('hidden');
-        loadOrderHistory();
-    }
+    Object.keys(tabs).forEach(k => {
+        const btn = document.getElementById(tabs[k]);
+        const pane = document.getElementById(panes[k]);
+        if (k === tab) {
+            btn.className = "pb-2 text-sm font-bold border-b-2 border-black transition";
+            btn.classList.remove('text-gray-400');
+            pane.classList.remove('hidden');
+        } else {
+            btn.className = "pb-2 text-sm font-bold text-gray-400 border-b-2 border-transparent hover:text-gray-600 transition";
+            pane.classList.add('hidden');
+        }
+    });
+
+    if (tab === 'orders') loadOrderHistory();
+    if (tab === 'saved') renderFavorites();
 }
 
-async function loadOrderHistory() {
-    const div = document.getElementById('paneOrders');
-    div.innerHTML = '<div class="text-center py-4"><div class="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto"></div></div>';
+function renderFavorites() {
+    const div = document.getElementById('savedList');
+    div.innerHTML = '';
+    
+    if (AppState.favorites.length === 0) {
+        div.innerHTML = `<div class="text-center py-8 text-gray-500"><i class="bi bi-heart text-4xl mb-2 block"></i><p>No saved items.</p></div>`;
+        return;
+    }
 
-    try {
-        const res = await fetch(API_URL, {
-            method: 'POST',
-            body: JSON.stringify({ action: 'getOrderHistory', payload: { phone: AppState.user.phone } }) 
-        }).then(r => r.json());
-
-        if (res.success && res.orders.length > 0) {
-            div.innerHTML = res.orders.map(o => `
-                <div class="border rounded-lg p-3 text-sm">
-                    <div class="flex justify-between items-start mb-2">
-                        <div>
-                            <div class="font-bold">#${o.order_id}</div>
-                            <div class="text-xs text-gray-500">${new Date(o.date).toLocaleDateString()}</div>
-                        </div>
-                        <div class="px-2 py-1 rounded text-xs font-bold ${getStatusColor(o.status)}">
-                            ${o.status.toUpperCase()}
-                        </div>
-                    </div>
-                    <div class="space-y-1 mb-2">
-                        ${o.items.map(i => `<div class="text-gray-600 truncate">${i.item_name} (x${i.qty})</div>`).join('')}
-                    </div>
-                    <div class="flex justify-between items-center border-t pt-2 mt-2">
-                        <span class="font-bold">Total</span>
-                        <span class="font-bold">${AppState.currency}${o.total}</span>
-                    </div>
+    const favItems = AppState.products.filter(p => AppState.favorites.includes(p.sub_code));
+    
+    favItems.forEach(item => {
+        div.innerHTML += `
+            <div class="flex gap-4 border p-2 rounded cursor-pointer hover:bg-gray-50" onclick="openProductModalFromCode('${item.parent_code}', '${item.sub_code}')">
+                <img src="${formatImage(item.main_image_url)}" class="w-16 h-20 object-cover rounded">
+                <div>
+                    <h4 class="font-bold text-sm">${item.product_name}</h4>
+                    <p class="text-xs text-gray-500">${item.category} | ${item.color_name}</p>
+                    <p class="font-bold text-sm mt-1">${AppState.currency}${item.discount_active ? item.discount_price : item.base_price}</p>
                 </div>
-            `).join('');
-        } else {
-            div.innerHTML = `<div class="text-center py-8 text-gray-500"><i class="bi bi-bag-x text-4xl mb-2 block"></i><p>No orders found.</p></div>`;
-        }
-    } catch (e) {
-        div.innerHTML = '<div class="text-red-500 text-center text-sm">Failed to load orders.</div>';
-    }
+            </div>
+        `;
+    });
 }
 
-function getStatusColor(status) {
-    switch (status.toLowerCase()) {
-        case 'pending': return 'bg-yellow-100 text-yellow-800';
-        case 'paid': return 'bg-blue-100 text-blue-800';
-        case 'processing': return 'bg-purple-100 text-purple-800';
-        case 'shipped': return 'bg-indigo-100 text-indigo-800';
-        case 'delivered': return 'bg-green-100 text-green-800';
-        case 'cancelled': return 'bg-red-100 text-red-800';
-        default: return 'bg-gray-100 text-gray-800';
-    }
+function openProductModalFromCode(parentCode, subCode) {
+    const p = AppState.products.find(x => x.sub_code === subCode);
+    if(p) { openProductModal(p); closeProfile(); }
 }
 
-function closeProfile() {
-    document.getElementById('profileModal').classList.add('hidden');
-    document.getElementById('profileModal').classList.remove('flex');
-}
+// --- FORGOT PASSWORD ---
+function openForgotPass() { switchAuth('forgot'); document.getElementById('forgotStep1').classList.remove('hidden'); document.getElementById('forgotStep2').classList.add('hidden'); }
 
-function logoutUser() {
-    localStorage.removeItem('faym_user');
-    location.reload();
-}
-
-async function handleUpdateProfile(e) {
+async function handleForgotPassStep1(e) {
     e.preventDefault();
-    const btn = e.target.querySelector('button[type="submit"]');
-    const txt = btn.innerText;
-
-    const currPass = document.getElementById('profCurrPass').value;
-    const newPass = document.getElementById('profNewPass').value;
-    const repPass = document.getElementById('profRepPass').value;
-
-    if (newPass || repPass) {
-        if (!currPass) { alert("Please enter your current password to change it."); return; }
-        if (newPass !== repPass) { alert("New passwords do not match."); return; }
-        if (newPass.length < 6) { alert("New password must be at least 6 characters."); return; }
-    }
-
-    btn.innerText = "Saving..."; btn.disabled = true;
-
-    try {
-        const payload = {
-            userId: AppState.user.userId,
-            fullName: document.getElementById('profName').value,
-            phone: document.getElementById('profPhone').value
-        };
-        if (newPass) {
-            payload.currentPassword = currPass;
-            payload.newPassword = newPass;
-        }
-
-        const res = await fetch(API_URL, {
-            method: 'POST',
-            body: JSON.stringify({ action: 'updateUser', payload: payload })
-        }).then(r => r.json());
-
-        if (res.success) {
-            AppState.user = res.user;
-            localStorage.setItem('faym_user', JSON.stringify(res.user));
-            alert("Profile Updated Successfully!");
-            document.getElementById('profCurrPass').value = '';
-            document.getElementById('profNewPass').value = '';
-            document.getElementById('profRepPass').value = '';
-            closeProfile();
-        } else {
-            alert(res.message || "Update failed.");
-        }
-    } catch (e) { alert("Connection Error"); }
-    btn.innerText = txt; btn.disabled = false;
-}
-
-// --- AUTH LOGIC ---
-function openAuth() { document.getElementById('authModal').classList.remove('hidden'); document.getElementById('authModal').classList.add('flex'); }
-function closeAuth() { document.getElementById('authModal').classList.add('hidden'); document.getElementById('authModal').classList.remove('flex'); }
-
-function switchAuth(mode) {
-    ['loginForm', 'registerForm', 'forgotForm'].forEach(id => document.getElementById(id).classList.add('hidden'));
-    document.getElementById(`${mode}Form`).classList.remove('hidden');
-}
-
-function clearError(input) {
-    input.classList.remove('border-red-500');
-    const p = input.nextElementSibling;
-    if (p && p.classList.contains('error-msg')) p.classList.add('hidden');
-}
-
-function showError(input, msg) {
-    input.classList.add('border-red-500');
-    const p = input.nextElementSibling;
-    if (p && p.classList.contains('error-msg')) {
-        p.innerText = msg;
-        p.classList.remove('hidden');
-    }
-}
-
-async function handleLogin(e) {
-    e.preventDefault();
-    const f = e.target;
-    let valid = true;
-
-    clearError(f.email);
-    clearError(f.password);
-
-    if (!f.email.value.trim()) { showError(f.email, 'Email is required'); valid = false; }
-    if (!f.password.value.trim()) { showError(f.password, 'Password is required'); valid = false; }
-
-    if (!valid) return;
-
-    const btn = f.querySelector('button[type="submit"]');
-    const txt = btn.innerText;
-    btn.innerText = "Verifying..."; btn.disabled = true;
-
-    try {
-        const res = await fetch(API_URL, {
-            method: 'POST',
-            body: JSON.stringify({ action: 'loginUser', payload: { email: f.email.value.trim(), password: f.password.value.trim() } })
-        }).then(r => r.json());
-
-        if (res.success) {
-            AppState.user = res.user;
-            localStorage.setItem('faym_user', JSON.stringify(res.user));
-            location.reload();
-        } else {
-            showError(f.password, res.message || "Invalid credentials");
-        }
-    } catch (e) { showError(f.password, "Connection Error"); }
-    btn.innerText = txt; btn.disabled = false;
-}
-
-async function handleRegister(e) {
-    e.preventDefault();
-    const f = e.target;
-    let valid = true;
-
-    clearError(f.fullName);
-    clearError(f.email);
-    clearError(f.phone);
-    clearError(f.password);
-
-    if (!f.fullName.value.trim()) { showError(f.fullName, 'Name is required'); valid = false; }
-    if (!f.email.value.trim() || !f.email.value.includes('@')) { showError(f.email, 'Valid email required'); valid = false; }
-    if (!f.phone.value.trim() || f.phone.value.length < 10) { showError(f.phone, 'Valid phone required'); valid = false; }
-    if (f.password.value.length < 6) { showError(f.password, 'Min 6 chars required'); valid = false; }
-
-    if (!valid) return;
-
-    const btn = f.querySelector('button[type="submit"]');
-    const txt = btn.innerText;
-    btn.innerText = "Creating..."; btn.disabled = true;
-
-    try {
-        const res = await fetch(API_URL, {
-            method: 'POST',
-            body: JSON.stringify({
-                action: 'registerUser',
-                payload: {
-                    fullName: f.fullName.value,
-                    email: f.email.value.trim(),
-                    phone: f.phone.value,
-                    password: f.password.value
-                }
-            })
-        }).then(r => r.json());
-
-        if (res.success) {
-            alert('Account Created! Please Login.');
-            switchAuth('login');
-        } else {
-            if (res.message.toLowerCase().includes('email')) showError(f.email, res.message);
-            else showError(f.fullName, res.message);
-        }
-    } catch (e) { showError(f.fullName, "Connection Error"); }
-    btn.innerText = txt; btn.disabled = false;
-}
-
-function openForgotPass() { switchAuth('forgot'); }
-
-async function handleForgotPass(e) {
-    e.preventDefault();
-    const f = e.target;
-    if (!f.email.value.trim()) { showError(f.email, 'Email is required'); return; }
-
-    const btn = f.querySelector('button');
-    const txt = btn.innerText;
+    const email = document.getElementById('fpEmail').value.trim();
+    if(!email) return showToast("Enter email", "error");
+    
+    const btn = e.target.querySelector('button');
     btn.innerText = "Sending..."; btn.disabled = true;
 
     try {
         const res = await fetch(API_URL, {
             method: 'POST',
-            body: JSON.stringify({ action: 'forgotPassword', payload: { email: f.email.value.trim() } })
+            body: JSON.stringify({ action: 'sendForgotOtp', payload: { email } })
         }).then(r => r.json());
 
         if (res.success) {
-            alert("OTP sent to your email (Valid for 15 mins). Check Spam/Inbox.");
+            document.getElementById('forgotStep1').classList.add('hidden');
+            document.getElementById('forgotStep2').classList.remove('hidden');
+            showToast("Code Sent to Email");
+        } else {
+            showToast(res.message, "error");
+        }
+    } catch(e) { showToast("Connection Error", "error"); }
+    btn.innerText = "Send OTP"; btn.disabled = false;
+}
+
+async function handleForgotPassStep2(e) {
+    e.preventDefault();
+    const email = document.getElementById('fpEmail').value.trim();
+    const otp = document.getElementById('fpOtp').value.trim();
+    const newPassword = document.getElementById('fpNewPass').value.trim();
+
+    const btn = e.target.querySelector('button');
+    btn.innerText = "Resetting..."; btn.disabled = true;
+
+    try {
+        const res = await fetch(API_URL, {
+            method: 'POST',
+            body: JSON.stringify({ action: 'verifyOtpAndReset', payload: { email, otp, newPassword } })
+        }).then(r => r.json());
+
+        if (res.success) {
+            showToast("Password Reset! Please Login.");
             switchAuth('login');
         } else {
-            showError(f.email, res.message || "User not found");
+            showToast(res.message, "error");
         }
-    } catch (e) { showError(f.email, "Network Error"); }
-    btn.innerText = txt; btn.disabled = false;
+    } catch(e) { showToast("Error resetting", "error"); }
+    btn.innerText = "Reset Password"; btn.disabled = false;
 }
 
-// --- GRID & DROPS ---
-function renderProductGrid(products = AppState.products) {
-    const grid = document.getElementById('productGrid');
-    grid.innerHTML = '';
-    const grouped = groupProducts(products);
-    if (grouped.length === 0) {
-        grid.innerHTML = '<div class="col-span-full text-center text-gray-400">No products match.</div>';
-        return;
-    }
-    grouped.forEach(p => grid.appendChild(createProductCard(p)));
-}
-
-function renderLatestDrops() {
-    const drops = AppState.products.filter(p => p.is_new === true);
-    const sec = document.getElementById('latestDropsSection');
-    if (drops.length === 0) {
-        sec.classList.add('hidden');
-        return;
-    }
-    sec.classList.remove('hidden');
-    const grid = document.getElementById('latestGrid');
-    grid.innerHTML = '';
-    groupProducts(drops).slice(0, 4).forEach(p => grid.appendChild(createProductCard(p)));
-}
-
-function groupProducts(list) {
-    const map = {};
-    list.forEach(p => {
-        if (!map[p.parent_code]) map[p.parent_code] = { ...p, variants: [] };
-        map[p.parent_code].variants.push(p);
-    });
-    return Object.values(map);
-}
-
-function createProductCard(p) {
-    const div = document.createElement('div');
-    div.className = "group cursor-pointer";
-    div.onclick = () => openProductModal(p);
-
-    // Color dots
-    let dots = p.variants.map(v => {
-        const hasStock = AppState.inventory.some(i => i.sub_code === v.sub_code && i.stock_qty > 0);
-        return `<div class="w-3 h-3 rounded-full border border-gray-200 ${hasStock ? '' : 'opacity-30 diagonal-strike'}" style="background-color:${v.color_hex};" title="${v.color_name}${hasStock ? '' : ' (OOS)'}"></div>`;
-    }).join('');
-
-    div.innerHTML = `
-            <div class="relative w-full aspect-[4/5] bg-gray-100 overflow-hidden mb-4 rounded-sm">
-                <img src="${formatImage(p.main_image_url)}" class="w-full h-full object-cover transition duration-700 group-hover:scale-110">
-                ${p.discount_active ? '<span class="absolute top-2 left-2 bg-red-600 text-white text-[10px] uppercase font-bold px-2 py-1">Sale</span>' : ''}
-                <div class="absolute bottom-4 left-4 right-4 translate-y-[120%] group-hover:translate-y-0 transition-transform duration-300 ease-out z-20">
-                    <button class="w-full bg-white text-black py-3.5 font-bold text-sm uppercase tracking-wider shadow-lg hover:bg-black hover:text-white transition-all border border-black/10 rounded-sm">View Options</button>
-                </div>
-            </div>
-            <div>
-                 <h3 class="font-bold text-lg leading-tight">${p.product_name}</h3>
-                 <span class="text-xs text-gray-500 mb-1 block">${p.category}</span>
-                 <div class="flex items-center gap-2 text-sm text-gray-600 mb-2">
-                     ${p.discount_active ? `<span class="font-bold text-red-600">${AppState.currency}${p.discount_price}</span> <span class="line-through text-xs">${AppState.currency}${p.base_price}</span>` : `<span class="font-bold">${AppState.currency}${p.base_price}</span>`}
-                 </div>
-                 <div class="flex gap-1 opacity-80">${dots}</div>
-            </div>
-        `;
-    return div;
-}
-
-// --- SEARCH & SORTING ---
-function toggleSearch() {
-    const ol = document.getElementById('searchOverlay');
-    const backdrop = document.getElementById('searchBackdrop');
-    const drawer = document.getElementById('searchDrawer');
-    const input = document.getElementById('searchInput');
-
-    if (ol.classList.contains('hidden')) {
-        ol.classList.remove('hidden');
-        void ol.offsetWidth;
-        backdrop.classList.remove('opacity-0');
-        drawer.classList.remove('-translate-y-full');
-        input.focus();
-    } else {
-        backdrop.classList.add('opacity-0');
-        drawer.classList.add('-translate-y-full');
-        setTimeout(() => ol.classList.add('hidden'), 300);
-    }
-}
-
-function populateFilters() {
-    const uniqueCats = [...new Set(AppState.products.map(p => p.category))];
-    const sel = document.getElementById('filterCategory');
-    sel.innerHTML = '<option value="all">All Categories</option>';
-    uniqueCats.forEach(c => {
-        if (c) {
-            const opt = document.createElement('option');
-            opt.value = c; opt.innerText = c;
-            sel.appendChild(opt);
-        }
-    });
-}
-
-function runSearchOrFilter() {
-    const q = document.getElementById('searchInput').value.toLowerCase();
-    const cat = document.getElementById('filterCategory').value;
-    const price = document.getElementById('filterPrice').value;
-    const stockPos = document.getElementById('filterStock').checked;
-    const sortMode = document.getElementById('sortOrder')?.value || 'newest';
-
-    let results = AppState.products.filter(p => {
-        const matchSearch = !q || p.product_name.toLowerCase().includes(q) || p.color_name.toLowerCase().includes(q) || (p.category && p.category.toLowerCase().includes(q));
-        const matchCat = cat === 'all' || p.category === cat;
-
-        const pVal = p.discount_active ? p.discount_price : p.base_price;
-        let matchPrice = true;
-        if (price === 'under100') matchPrice = pVal < 100;
-        else if (price === '100to300') matchPrice = pVal >= 100 && pVal <= 300;
-        else if (price === 'over300') matchPrice = pVal > 300;
-
-        let matchStock = true;
-        if (stockPos) {
-            matchStock = AppState.inventory.some(i => i.sub_code === p.sub_code && i.stock_qty > 0);
-        }
-        return matchSearch && matchCat && matchPrice && matchStock;
-    });
-
-    // --- SORTING LOGIC ---
-    results.sort((a, b) => {
-        const priceA = a.discount_active ? a.discount_price : a.base_price;
-        const priceB = b.discount_active ? b.discount_price : b.base_price;
-
-        if (sortMode === 'priceLow') return priceA - priceB;
-        if (sortMode === 'priceHigh') return priceB - priceA;
-        return 0; // Default (Order from Sheets)
-    });
-
-    if (!document.getElementById('searchOverlay').classList.contains('hidden')) {
-        toggleSearch();
-    }
-
-    const titleEl = document.querySelector('main h2');
-    const subTitleEl = document.querySelector('main span.text-brand-accent');
-    const resetBtn = document.getElementById('gridResetBtn');
-
-    if (q || cat !== 'all' || price !== 'all' || stockPos || sortMode !== 'newest') {
-        if (subTitleEl) subTitleEl.innerText = "Filtered Results";
-        if (titleEl) titleEl.innerHTML = q ? `Search for "<span class='italic'>${q}</span>"` : "Filtered Selection";
-        if (resetBtn) resetBtn.classList.remove('hidden');
-    } else {
-        if (subTitleEl) subTitleEl.innerText = "Collection";
-        if (titleEl) titleEl.innerText = "All Products";
-        if (resetBtn) resetBtn.classList.add('hidden');
-    }
-
-    renderProductGrid(results);
-    scrollToGrid();
-}
-
-function resetFilters() {
-    document.getElementById('searchInput').value = '';
-    document.getElementById('filterCategory').value = 'all';
-    document.getElementById('filterPrice').value = 'all';
-    document.getElementById('sortOrder').value = 'newest';
-    document.getElementById('filterStock').checked = false;
-    runSearchOrFilter();
-}
-
-// --- MODAL ---
-let currentGroup = [], currentVar = null, selSize = null;
-let currentGallery = [], galleryIdx = 0;
-
-async function initGallery(varData) {
-    const mainImg = formatImage(varData.main_image_url);
-    currentGallery = [mainImg];
-    galleryIdx = 0;
-    renderGalleryUI();
-
-    if (varData.gallery_images) {
-        const raw = varData.gallery_images;
-        // Direct Comma-Separated Links (Cloudinary Preferred)
-        const list = raw.split(',').map(s => formatImage(s.trim())).filter(s => s && s !== mainImg);
-        currentGallery.push(...list);
-    }
-    renderGalleryUI();
-}
-
-function renderGalleryUI() {
-    document.getElementById('modalImg').src = currentGallery[galleryIdx];
-    const prevBtn = document.getElementById('galleryPrevBtn');
-    const nextBtn = document.getElementById('galleryNextBtn');
+// --- CHECKOUT ---
+function checkout() {
+    if (AppState.cart.length === 0) return showToast("Your cart is empty.", "error");
     
-    if (currentGallery.length > 1) {
-        prevBtn.classList.remove('hidden');
-        nextBtn.classList.remove('hidden');
+    if (AppState.user) {
+        document.getElementById('chkName').value = AppState.user.fullName || '';
+        document.getElementById('chkEmail').value = AppState.user.email || '';
+        document.getElementById('chkPhone').value = (AppState.user.phone || '').replace("'", "");
+        document.getElementById('chkEmail').disabled = true;
     } else {
-        prevBtn.classList.add('hidden');
-        nextBtn.classList.add('hidden');
+        document.getElementById('chkName').value = '';
+        document.getElementById('chkEmail').value = '';
+        document.getElementById('chkPhone').value = '';
+        document.getElementById('chkEmail').disabled = false;
     }
 
-    const tDiv = document.getElementById('galleryThumbnails');
-    tDiv.innerHTML = '';
-    if (currentGallery.length > 1) {
-        currentGallery.forEach((img, i) => {
-            const btn = document.createElement('button');
-            btn.className = `w-12 h-16 flex-shrink-0 border-2 rounded overflow-hidden transition ${i === galleryIdx ? 'border-brand-accent scale-105' : 'border-transparent opacity-60 hover:opacity-100'}`;
-            btn.innerHTML = `<img src="${img}" class="w-full h-full object-cover">`;
-            btn.onclick = (e) => { e.stopPropagation(); galleryIdx = i; renderGalleryUI(); };
-            tDiv.appendChild(btn);
-        });
-    }
+    renderCheckoutItems();
+    if (deliveryMethod === 'delivery') initZoneDropdowns();
+    updateCheckoutTotals();
+    document.getElementById('checkoutModal').classList.remove('hidden');
+    document.getElementById('checkoutModal').classList.add('flex');
 }
 
-function changeGalleryImage(dir) {
-    galleryIdx = (galleryIdx + dir + currentGallery.length) % currentGallery.length;
-    renderGalleryUI();
+function renderCheckoutItems() {
+    const cDiv = document.getElementById('chkItems');
+    cDiv.innerHTML = AppState.cart.map(item => `
+        <div class="flex gap-3 text-sm">
+             <img src="${formatImage(item.image)}" class="w-12 h-16 object-cover rounded border">
+             <div class="flex-1">
+                 <div class="font-bold line-clamp-1">${item.product_name}</div>
+                 <div class="text-xs text-gray-500">${item.size} | ${item.color}</div>
+                 <div class="font-semibold mt-1">x${item.qty} ${AppState.currency}${item.price}</div>
+             </div>
+        </div>
+    `).join('');
+}
+
+function processPayment() {
+    const name = document.getElementById('chkName').value.trim();
+    const email = document.getElementById('chkEmail').value.trim();
+    const phone = document.getElementById('chkPhone').value.trim();
+    const address = deliveryMethod === 'delivery' ? document.getElementById('chkAddress').value : "Store Pickup";
+
+    if (!name || !email || !phone || (deliveryMethod === 'delivery' && !address)) {
+        return showToast("Please fill all contact fields.", "error");
+    }
+
+    const subtotal = AppState.cart.reduce((sum, i) => sum + (i.price * i.qty), 0);
+    const fee = deliveryMethod === 'delivery' ? deliveryFee : 0;
+    const total = subtotal + fee;
+    const paystackKey = AppState.config['PAYSTACK_PUBLIC_KEY'];
+
+    if (!paystackKey) return showToast("Config Error: Missing Payment Key", "error");
+
+    const handler = PaystackPop.setup({
+        key: paystackKey,
+        email: email,
+        amount: total * 100,
+        currency: 'GHS',
+        metadata: {
+            custom_fields: [
+                { display_name: "Customer Name", variable_name: "customer_name", value: name },
+                { display_name: "Phone", variable_name: "phone", value: phone },
+                { display_name: "Delivery Method", variable_name: "delivery_method", value: deliveryMethod }
+            ]
+        },
+        callback: function (response) {
+            const orderPayload = {
+                storeName: "FAYM",
+                customerName: name,
+                email: email,
+                phone: phone,
+                location: address,
+                deliveryMethod: deliveryMethod,
+                paymentMethod: "Paystack",
+                grandTotal: total,
+                items: AppState.cart.map(c => ({
+                    sku_id: c.sku,
+                    item_name: c.product_name,
+                    size: c.size,
+                    qty: c.qty,
+                    price: c.price 
+                })),
+                paymentReference: response.reference 
+            };
+
+            fetch(API_URL, {
+                method: 'POST',
+                body: JSON.stringify({ action: 'processOrder', payload: orderPayload })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    showToast("Order Confirmed!");
+                    closeCheckout();
+                    AppState.cart = [];
+                    saveCart();
+                } else {
+                    showToast(data.message, "error");
+                }
+            })
+            .catch(err => showToast("Network Error", "error"));
+        },
+        onClose: function () {
+            showToast("Payment Cancelled", "error");
+        }
+    });
+    handler.openIframe();
+}
+
+function toggleCart() {
+    const d = document.getElementById('cartDrawer');
+    d.classList.toggle('translate-x-full');
+    document.getElementById('cartBackdrop').classList.toggle('hidden');
+    setTimeout(() => document.getElementById('cartBackdrop').classList.toggle('opacity-0'), 10);
 }
 
 function openProductModal(p) {
@@ -609,7 +347,6 @@ function selectVariant(sub) {
         oldPriceEl.classList.add('hidden');
     }
     document.getElementById('modalDesc').innerText = currentVar.description || '';
-
     initGallery(currentVar);
 
     const cDiv = document.getElementById('modalColors');
@@ -644,23 +381,16 @@ function renderSizes() {
         
         if (qty > 0) {
             btn.className = "py-3 rounded border text-sm font-semibold hover:border-black hover:bg-black hover:text-white transition";
-            
-            // LOW STOCK ALERT
-            if (qty < 5) {
-                btn.innerHTML = `${sz} <span class="block text-[9px] text-red-500 font-normal leading-none mt-0.5">Left: ${qty}</span>`;
-            } else {
-                btn.innerText = sz;
-            }
+            if (qty < 5) btn.innerHTML = `${sz} <span class="block text-[9px] text-red-500 font-normal leading-none mt-0.5">Left: ${qty}</span>`;
+            else btn.innerText = sz;
 
             btn.onclick = () => {
                 Array.from(sDiv.children).forEach(c => { if (!c.disabled) c.className = "py-3 rounded border text-sm font-semibold hover:border-black hover:bg-black hover:text-white transition"; });
                 btn.className = "py-3 rounded border text-sm font-semibold bg-black text-white border-black shadow-md";
-
                 selSize = { size: sz, sku: item.sku_id, max: qty };
-                const addBtn = document.getElementById('addToCartBtn');
-                addBtn.disabled = false;
-                addBtn.className = "w-full py-4 bg-black text-white font-bold rounded-lg transition-all text-sm uppercase hover:scale-[1.01] shadow-lg";
-                addBtn.innerText = `Add - ${AppState.currency}${currentVar.discount_active ? currentVar.discount_price : currentVar.base_price}`;
+                document.getElementById('addToCartBtn').disabled = false;
+                document.getElementById('addToCartBtn').className = "w-full py-4 bg-black text-white font-bold rounded-lg transition-all text-sm uppercase hover:scale-[1.01] shadow-lg";
+                document.getElementById('addToCartBtn').innerText = `Add - ${AppState.currency}${currentVar.discount_active ? currentVar.discount_price : currentVar.base_price}`;
             };
         } else {
             btn.innerText = sz;
@@ -668,12 +398,6 @@ function renderSizes() {
         }
         sDiv.appendChild(btn);
     });
-
-    const addBtn = document.getElementById('addToCartBtn');
-    addBtn.disabled = true;
-    addBtn.innerText = "Select Size";
-    addBtn.className = "w-full py-4 bg-gray-200 text-gray-400 font-bold rounded-lg transition-all text-sm uppercase cursor-not-allowed";
-    selSize = null;
 }
 
 function addToCartFromModal() {
@@ -691,323 +415,40 @@ function addToCartFromModal() {
     };
     const exist = AppState.cart.find(c => c.sku === item.sku);
     if (exist) {
-        if (exist.qty < exist.maxQty) exist.qty++; else alert("Max stock reached.");
+        if (exist.qty < exist.maxQty) exist.qty++; else showToast("Max stock reached.", "error");
     } else {
         AppState.cart.push(item);
     }
     saveCart();
-
     const drawer = document.getElementById('cartDrawer');
-    if (drawer && drawer.classList.contains('translate-x-full')) {
-        toggleCart();
-    }
-
-    document.getElementById('addSuccessMsg').classList.remove('hidden');
-    setTimeout(() => document.getElementById('addSuccessMsg').classList.add('hidden'), 3000);
-}
-
-// --- LIKES ---
-async function fetchLikes() {
-    try {
-        const res = await fetch(`${API_URL}`, { method: 'POST', body: JSON.stringify({ action: 'getLikes', payload: { email: AppState.user.email } }) }).then(r => r.json());
-        if (res.success) AppState.favorites = res.likes;
-    } catch (e) { }
-}
-
-async function toggleLikeFromModal() {
-    if (!currentVar) return;
-    if (!AppState.user) { openAuth(); return; }
-    const sub = currentVar.sub_code;
-    const heart = document.getElementById('modalLikeBtn').querySelector('i');
-
-    if (AppState.favorites.includes(sub)) {
-        AppState.favorites = AppState.favorites.filter(x => x !== sub);
-        heart.className = "bi bi-heart"; heart.parentElement.classList.remove('text-red-500');
-    } else {
-        AppState.favorites.push(sub);
-        heart.className = "bi bi-heart-fill"; heart.parentElement.classList.add('text-red-500');
-    }
-    await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'toggleLike', payload: { email: AppState.user.email, productSubCode: sub } }) });
-}
-
-// --- CART ---
-function saveCart() { localStorage.setItem('faym_cart', JSON.stringify(AppState.cart)); renderCartCount(); renderCartDrawer(); }
-function renderCartCount() { document.getElementById('cartCount').innerText = AppState.cart.reduce((a, b) => a + b.qty, 0); document.getElementById('cartCount').classList.toggle('opacity-0', AppState.cart.length === 0); }
-function renderCartDrawer() {
-    const div = document.getElementById('cartItems'); div.innerHTML = '';
-    let tot = 0;
-    if (AppState.cart.length === 0) div.innerHTML = "<div class='text-center text-gray-500 mt-10'>Cart is empty.</div>";
-    else {
-        AppState.cart.forEach((c, i) => {
-            tot += c.price * c.qty;
-            div.innerHTML += `
-                    <div class="flex gap-4">
-                        <img src="${formatImage(c.image)}" class="w-16 h-20 object-cover rounded bg-gray-100">
-                        <div class="flex-1">
-                            <h4 class="font-bold text-sm line-clamp-1">${c.product_name}</h4>
-                            <span class="text-xs text-gray-500">${c.color} | ${c.size}</span>
-                            <div class="flex justify-between mt-2">
-                                <span class="font-bold text-sm">${AppState.currency}${c.price}</span>
-                                <div class="border rounded flex items-center bg-white"><button onclick="updCart(${i},-1)" class="px-2 hover:bg-gray-100">-</button><span class="px-2 text-xs font-bold">${c.qty}</span><button onclick="updCart(${i},1)" class="px-2 hover:bg-gray-100">+</button></div>
-                            </div>
-                        </div>
-                        <button onclick="rmCart(${i})" class="text-gray-400 hover:text-red-500"><i class="bi bi-trash"></i></button>
-                    </div>`;
-        });
-    }
-    document.getElementById('cartSubtotal').innerText = AppState.currency + tot;
-}
-function updCart(i, d) {
-    const c = AppState.cart[i];
-    if (c.qty + d > 0 && c.qty + d <= c.maxQty) { c.qty += d; saveCart(); }
-}
-function rmCart(i) {
-    AppState.cart.splice(i, 1);
-    saveCart();
-}
-
-// --- CHECKOUT LOGIC ---
-let deliveryMethod = 'delivery';
-let deliveryFee = 0;
-
-function checkout() {
-    if (AppState.cart.length === 0) {
-        alert("Your cart is empty.");
-        return;
-    }
-    if (AppState.user) {
-        document.getElementById('chkName').value = AppState.user.fullName || '';
-        document.getElementById('chkPhone').value = AppState.user.phone || '';
-    }
-
-    const cDiv = document.getElementById('chkItems');
-    cDiv.innerHTML = AppState.cart.map(item => `
-        <div class="flex gap-3 text-sm">
-             <img src="${formatImage(item.image)}" class="w-12 h-16 object-cover rounded border">
-             <div class="flex-1">
-                 <div class="font-bold line-clamp-1">${item.product_name}</div>
-                 <div class="text-xs text-gray-500">${item.size} | ${item.color}</div>
-                 <div class="font-semibold mt-1">x${item.qty} ${AppState.currency}${item.price}</div>
-             </div>
-        </div>
-    `).join('');
-
-    const options = { month: 'short', day: 'numeric' };
-    const dateStart = new Date(); dateStart.setDate(dateStart.getDate() + 5);
-    const dateEnd = new Date(); dateEnd.setDate(dateEnd.getDate() + 14);
-    document.getElementById('chkEstDate').innerText = `${dateStart.toLocaleDateString(undefined, options)} - ${dateEnd.toLocaleDateString(undefined, options)}`;
-
-    if (deliveryMethod === 'delivery') initZoneDropdowns();
-
-    updateCheckoutTotals();
-
-    document.getElementById('checkoutModal').classList.remove('hidden');
-    document.getElementById('checkoutModal').classList.add('flex');
-}
-
-function closeCheckout() {
-    document.getElementById('checkoutModal').classList.add('hidden');
-    document.getElementById('checkoutModal').classList.remove('flex');
-}
-
-function setDeliveryMethod(method) {
-    deliveryMethod = method;
-
-    const tabDel = document.getElementById('tabDelivery');
-    const tabPick = document.getElementById('tabPickup');
-    const paneDel = document.getElementById('paneDelivery');
-    const panePick = document.getElementById('panePickup');
-
-    if (method === 'delivery') {
-        tabDel.className = "pb-2 text-lg font-bold border-b-2 border-black transition";
-        tabDel.classList.remove('text-gray-400');
-        tabPick.className = "pb-2 text-lg font-bold text-gray-400 border-b-2 border-transparent hover:text-gray-600 transition";
-        paneDel.classList.remove('hidden');
-        panePick.classList.add('hidden');
-        initZoneDropdowns();
-    } else {
-        tabPick.className = "pb-2 text-lg font-bold border-b-2 border-black transition";
-        tabPick.classList.remove('text-gray-400');
-        tabDel.className = "pb-2 text-lg font-bold text-gray-400 border-b-2 border-transparent hover:text-gray-600 transition";
-        panePick.classList.remove('hidden');
-        paneDel.classList.add('hidden');
-        deliveryFee = 0; 
-        updateCheckoutTotals();
-    }
-    updateCheckoutTotals();
-}
-
-// --- ZONE LOGIC ---
-function initZoneDropdowns() {
-    const locs = AppState.locations || [];
-    if (locs.length === 0) { console.warn("No Location Data"); return; }
-    const regSel = document.getElementById('chkRegion');
+    if (drawer && drawer.classList.contains('translate-x-full')) toggleCart();
     
-    const uniqueRegions = [...new Set(locs.map(l => l.Region))].filter(r => r && r !== "Region");
-    regSel.innerHTML = '<option value="">Select Region</option>';
-    uniqueRegions.forEach(r => {
-        const opt = document.createElement('option');
-        opt.value = r; opt.innerText = r;
-        regSel.appendChild(opt);
-    });
-    document.getElementById('chkTown').innerHTML = '<option value="">Select Town first</option>';
-    document.getElementById('chkArea').innerHTML = '<option value="">Select Area first</option>';
+    showToast("Added to Cart!");
 }
 
-function onRegionChange() {
-    const reg = document.getElementById('chkRegion').value;
-    const townSel = document.getElementById('chkTown');
-    townSel.innerHTML = '<option value="">Select Town/City</option>';
-    document.getElementById('chkArea').innerHTML = '<option value="">Select Area first</option>';
-    if (!reg) return;
-    const locs = AppState.locations.filter(l => l.Region === reg);
-    const uniqueTowns = [...new Set(locs.map(l => l.Town_City))];
-    uniqueTowns.forEach(t => {
-        const opt = document.createElement('option');
-        opt.value = t; opt.innerText = t;
-        townSel.appendChild(opt);
-    });
-}
+async function handleLogin(e) {
+    e.preventDefault();
+    const f = e.target;
+    if (!f.email.value.trim() || !f.password.value.trim()) return showToast("Fields required", "error");
+    
+    const btn = f.querySelector('button[type="submit"]');
+    const txt = btn.innerText; btn.innerText = "Verifying..."; btn.disabled = true;
 
-function onTownChange() {
-    const reg = document.getElementById('chkRegion').value;
-    const town = document.getElementById('chkTown').value;
-    const areaSel = document.getElementById('chkArea');
-    areaSel.innerHTML = '<option value="">Select Area/Locality</option>';
-    if (!town) return;
-    const locs = AppState.locations.filter(l => l.Region === reg && l.Town_City === town);
-    locs.forEach(l => {
-        const opt = document.createElement('option');
-        const price = l.Delivery_Price; 
-        const areaName = l.Area_Locality;
-        opt.value = `${areaName}|${price}`;
-        opt.innerText = `${areaName} (GH₵${price})`;
-        areaSel.appendChild(opt);
-    });
-}
+    try {
+        const res = await fetch(API_URL, {
+            method: 'POST',
+            body: JSON.stringify({ action: 'loginUser', payload: { email: f.email.value.trim(), password: f.password.value.trim() } })
+        }).then(r => r.json());
 
-function onAreaChange() {
-    const val = document.getElementById('chkArea').value;
-    if (val) {
-        const [area, price] = val.split('|');
-        deliveryFee = Number(price);
-    } else {
-        deliveryFee = 0;
-    }
-    updateCheckoutTotals();
-}
-
-function updateCheckoutTotals() {
-    const subtotal = AppState.cart.reduce((sum, i) => sum + (i.price * i.qty), 0);
-    const fee = deliveryMethod === 'delivery' ? deliveryFee : 0;
-    const total = subtotal + fee;
-    document.getElementById('chkSubtotal').innerText = `${AppState.currency}${subtotal}`;
-    document.getElementById('chkDeliveryFee').innerText = fee > 0 ? `${AppState.currency}${fee}` : 'Free';
-    document.getElementById('chkTotal').innerText = `${AppState.currency}${total}`;
-    document.getElementById('payBtn').innerHTML = `<i class="bi bi-credit-card"></i> <span>Pay Now ${AppState.currency}${total}</span>`;
-
-    if (deliveryMethod === 'delivery' && fee > 0) {
-        const area = document.getElementById('chkArea');
-        const areaName = area.options[area.selectedIndex]?.innerText?.split('(')[0] || '';
-        document.getElementById('chkDistanceInfo').innerText = `Delivery to: ${areaName}`;
-    } else {
-        document.getElementById('chkDistanceInfo').innerText = '';
-    }
-}
-
-// --- PAYSTACK PAYMENT ---
-function processPayment() {
-    if (!AppState.user) {
-        alert("Please login to proceed.");
-        return;
-    }
-
-    const name = document.getElementById('chkName').value;
-    const phone = document.getElementById('chkPhone').value;
-    const address = deliveryMethod === 'delivery' ? document.getElementById('chkAddress').value : "Store Pickup";
-
-    if (!name || !phone || (deliveryMethod === 'delivery' && !address)) {
-        alert("Please complete all fields.");
-        return;
-    }
-
-    const subtotal = AppState.cart.reduce((sum, i) => sum + (i.price * i.qty), 0);
-    const fee = deliveryMethod === 'delivery' ? deliveryFee : 0;
-    const total = subtotal + fee;
-
-    const paystackKey = AppState.config['PAYSTACK_PUBLIC_KEY'];
-
-    if (window.location.protocol === 'file:' || AppState.config['TEST_MODE']) {
-        console.log("Test Mode: Bypassing Paystack");
-        alert("Payment Bypassed in Test Mode. Check console.");
-        return;
-    }
-
-    if (!paystackKey) {
-        alert("Paystack Public Key Missing in Config. Cannot process payment.");
-        return;
-    }
-
-    const handler = PaystackPop.setup({
-        key: paystackKey,
-        email: AppState.user.email,
-        amount: total * 100, 
-        currency: 'GHS',
-        metadata: {
-            custom_fields: [
-                { display_name: "Customer Name", variable_name: "customer_name", value: name },
-                { display_name: "Phone", variable_name: "phone", value: phone },
-                { display_name: "Delivery Method", variable_name: "delivery_method", value: deliveryMethod }
-            ]
-        },
-        callback: function (response) {
-            const orderPayload = {
-                storeName: "FAYM",
-                customerName: name,
-                phone: phone,
-                location: address,
-                deliveryMethod: deliveryMethod,
-                paymentMethod: "Paystack",
-                grandTotal: total,
-                items: AppState.cart.map(c => ({
-                    sku_id: c.sku,
-                    item_name: c.product_name,
-                    size: c.size,
-                    qty: c.qty,
-                    price: c.price // Sent for reference, but Backend will RE-VERIFY price
-                })),
-                paymentReference: response.reference 
-            };
-
-            fetch(API_URL, {
-                method: 'POST',
-                body: JSON.stringify({ action: 'processOrder', payload: orderPayload })
-            })
-                .then(res => res.json())
-                .then(data => {
-                    if (data.success) {
-                        alert("Order Confirmed! Your Order ID: " + data.parentRef);
-                        closeCheckout();
-                        AppState.cart = [];
-                        saveCart();
-                    } else {
-                        alert("Order Verification Failed: " + data.message);
-                    }
-                })
-                .catch(err => alert("Network Error: " + err));
-        },
-        onClose: function () {
-            alert('Transaction was closed.');
+        if (res.success) {
+            AppState.user = res.user;
+            localStorage.setItem('faym_user', JSON.stringify(res.user));
+            location.reload();
+        } else {
+            showToast(res.message || "Invalid credentials", "error");
         }
-    });
-    handler.openIframe();
-}
-
-function toggleCart() {
-    const d = document.getElementById('cartDrawer');
-    d.classList.toggle('translate-x-full');
-    document.getElementById('cartBackdrop').classList.toggle('hidden');
-    setTimeout(() => document.getElementById('cartBackdrop').classList.toggle('opacity-0'), 10);
+    } catch (e) { showToast("Connection Error", "error"); }
+    btn.innerText = txt; btn.disabled = false;
 }
 
 // --- HERO SLIDER ---
@@ -1312,4 +753,195 @@ function openSizeGuideModal() {
 function closeSizeGuide() {
     document.getElementById('sizeGuideModal').classList.add('hidden');
     document.getElementById('sizeGuideModal').classList.remove('flex');
+}
+
+function logoutUser() {
+    localStorage.removeItem('faym_user');
+    location.reload();
+}
+
+async function handleRegister(e) {
+    e.preventDefault();
+    const f = e.target;
+    let valid = true;
+
+    clearError(f.fullName);
+    clearError(f.email);
+    clearError(f.phone);
+    clearError(f.password);
+
+    if (!f.fullName.value.trim()) { showError(f.fullName, 'Name is required'); valid = false; }
+    if (!f.email.value.trim() || !f.email.value.includes('@')) { showError(f.email, 'Valid email required'); valid = false; }
+    if (!f.phone.value.trim() || f.phone.value.length < 10) { showError(f.phone, 'Valid phone required'); valid = false; }
+    if (f.password.value.length < 6) { showError(f.password, 'Min 6 chars required'); valid = false; }
+
+    if (!valid) return;
+
+    const btn = f.querySelector('button[type="submit"]');
+    const txt = btn.innerText;
+    btn.innerText = "Creating..."; btn.disabled = true;
+
+    try {
+        const res = await fetch(API_URL, {
+            method: 'POST',
+            body: JSON.stringify({
+                action: 'registerUser',
+                payload: {
+                    fullName: f.fullName.value,
+                    email: f.email.value.trim(),
+                    phone: f.phone.value,
+                    password: f.password.value
+                }
+            })
+        }).then(r => r.json());
+
+        if (res.success) {
+            showToast('Account Created! Please Login.');
+            switchAuth('login');
+        } else {
+            if (res.message.toLowerCase().includes('email')) showError(f.email, res.message);
+            else showError(f.fullName, res.message);
+        }
+    } catch (e) { showError(f.fullName, "Connection Error"); }
+    btn.innerText = txt; btn.disabled = false;
+}
+
+function clearError(input) {
+    input.classList.remove('border-red-500');
+    const p = input.nextElementSibling;
+    if (p && p.classList.contains('error-msg')) p.classList.add('hidden');
+}
+
+function showError(input, msg) {
+    input.classList.add('border-red-500');
+    const p = input.nextElementSibling;
+    if (p && p.classList.contains('error-msg')) {
+        p.innerText = msg;
+        p.classList.remove('hidden');
+    }
+}
+
+async function handleUpdateProfile(e) {
+    e.preventDefault();
+    const btn = e.target.querySelector('button[type="submit"]');
+    const txt = btn.innerText;
+
+    const currPass = document.getElementById('profCurrPass').value;
+    const newPass = document.getElementById('profNewPass').value;
+    const repPass = document.getElementById('profRepPass').value;
+
+    if (newPass || repPass) {
+        if (!currPass) return showToast("Please enter current password.", "error");
+        if (newPass !== repPass) return showToast("New passwords do not match.", "error");
+        if (newPass.length < 6) return showToast("Min 6 characters required.", "error");
+    }
+
+    btn.innerText = "Saving..."; btn.disabled = true;
+
+    try {
+        const payload = {
+            userId: AppState.user.userId,
+            fullName: document.getElementById('profName').value,
+            phone: document.getElementById('profPhone').value
+        };
+        if (newPass) {
+            payload.currentPassword = currPass;
+            payload.newPassword = newPass;
+        }
+
+        const res = await fetch(API_URL, {
+            method: 'POST',
+            body: JSON.stringify({ action: 'updateUser', payload: payload })
+        }).then(r => r.json());
+
+        if (res.success) {
+            AppState.user = res.user;
+            localStorage.setItem('faym_user', JSON.stringify(res.user));
+            showToast("Profile Updated!");
+            document.getElementById('profCurrPass').value = '';
+            document.getElementById('profNewPass').value = '';
+            document.getElementById('profRepPass').value = '';
+            closeProfile();
+        } else {
+            showToast(res.message, "error");
+        }
+    } catch (e) { showToast("Connection Error", "error"); }
+    btn.innerText = txt; btn.disabled = false;
+}
+
+function initZoneDropdowns() {
+    const locs = AppState.locations || [];
+    if (locs.length === 0) { console.warn("No Location Data"); return; }
+    const regSel = document.getElementById('chkRegion');
+    
+    const uniqueRegions = [...new Set(locs.map(l => l.Region))].filter(r => r && r !== "Region");
+    regSel.innerHTML = '<option value="">Select Region</option>';
+    uniqueRegions.forEach(r => {
+        const opt = document.createElement('option');
+        opt.value = r; opt.innerText = r;
+        regSel.appendChild(opt);
+    });
+    document.getElementById('chkTown').innerHTML = '<option value="">Select Town first</option>';
+    document.getElementById('chkArea').innerHTML = '<option value="">Select Area first</option>';
+}
+
+function onRegionChange() {
+    const reg = document.getElementById('chkRegion').value;
+    const townSel = document.getElementById('chkTown');
+    townSel.innerHTML = '<option value="">Select Town/City</option>';
+    document.getElementById('chkArea').innerHTML = '<option value="">Select Area first</option>';
+    if (!reg) return;
+    const locs = AppState.locations.filter(l => l.Region === reg);
+    const uniqueTowns = [...new Set(locs.map(l => l.Town_City))];
+    uniqueTowns.forEach(t => {
+        const opt = document.createElement('option');
+        opt.value = t; opt.innerText = t;
+        townSel.appendChild(opt);
+    });
+}
+
+function onTownChange() {
+    const reg = document.getElementById('chkRegion').value;
+    const town = document.getElementById('chkTown').value;
+    const areaSel = document.getElementById('chkArea');
+    areaSel.innerHTML = '<option value="">Select Area/Locality</option>';
+    if (!town) return;
+    const locs = AppState.locations.filter(l => l.Region === reg && l.Town_City === town);
+    locs.forEach(l => {
+        const opt = document.createElement('option');
+        const price = l.Delivery_Price; 
+        const areaName = l.Area_Locality;
+        opt.value = `${areaName}|${price}`;
+        opt.innerText = `${areaName} (GH₵${price})`;
+        areaSel.appendChild(opt);
+    });
+}
+
+function onAreaChange() {
+    const val = document.getElementById('chkArea').value;
+    if (val) {
+        const [area, price] = val.split('|');
+        deliveryFee = Number(price);
+    } else {
+        deliveryFee = 0;
+    }
+    updateCheckoutTotals();
+}
+
+function updateCheckoutTotals() {
+    const subtotal = AppState.cart.reduce((sum, i) => sum + (i.price * i.qty), 0);
+    const fee = deliveryMethod === 'delivery' ? deliveryFee : 0;
+    const total = subtotal + fee;
+    document.getElementById('chkSubtotal').innerText = `${AppState.currency}${subtotal}`;
+    document.getElementById('chkDeliveryFee').innerText = fee > 0 ? `${AppState.currency}${fee}` : 'Free';
+    document.getElementById('chkTotal').innerText = `${AppState.currency}${total}`;
+    document.getElementById('payBtn').innerHTML = `<i class="bi bi-credit-card"></i> <span>Pay Now ${AppState.currency}${total}</span>`;
+
+    if (deliveryMethod === 'delivery' && fee > 0) {
+        const area = document.getElementById('chkArea');
+        const areaName = area.options[area.selectedIndex]?.innerText?.split('(')[0] || '';
+        document.getElementById('chkDistanceInfo').innerText = `Delivery to: ${areaName}`;
+    } else {
+        document.getElementById('chkDistanceInfo').innerText = '';
+    }
 }
