@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -14,10 +13,9 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
-    <link rel="stylesheet" href="style.css">
-
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <script src="https://js.paystack.co/v1/inline.js"></script>
+    <link rel="stylesheet" href="style.css">
 
     <script>
         tailwind.config = {
@@ -34,81 +32,70 @@
             }
         }
     </script>
+    <style>
+        .glass { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-bottom: 1px solid rgba(0, 0, 0, 0.05); }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .loader { border: 3px solid #f3f3f3; border-top: 3px solid #000; border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .diagonal-strike { background: linear-gradient(to top left, rgba(0,0,0,0) 0%, rgba(0,0,0,0) 48%, rgba(255,0,0,0.5) 50%, rgba(0,0,0,0) 52%, rgba(0,0,0,0) 100%); }
+        
+        /* TOAST ANIMATIONS */
+        .toast-enter { transform: translateX(100%); opacity: 0; }
+        .toast-enter-active { transform: translateX(0); opacity: 1; transition: all 300ms ease-out; }
+        .toast-exit { transform: translateX(0); opacity: 1; }
+        .toast-exit-active { transform: translateX(100%); opacity: 0; transition: all 300ms ease-in; }
+    </style>
 </head>
 
 <body class="bg-white text-brand-dark font-sans antialiased flex flex-col min-h-screen">
+
+    <div id="toastContainer" class="fixed top-24 right-5 z-[100] flex flex-col gap-3"></div>
 
     <header class="fixed w-full z-50 glass transition-all duration-300">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between items-center h-20">
                 <div class="flex items-center gap-4">
-                    <button onclick="toggleSearch()" class="p-2 hover:bg-gray-100 rounded-full transition"><i
-                            class="bi bi-search text-xl"></i></button>
+                    <button onclick="toggleSearch()" class="p-2 hover:bg-gray-100 rounded-full transition"><i class="bi bi-search text-xl"></i></button>
                 </div>
                 <a href="#" onclick="window.location.reload()" class="flex flex-col items-center group">
-                    <h1 class="font-bold text-3xl tracking-tighter leading-none group-hover:opacity-80 transition">FAYM
-                    </h1>
+                    <h1 class="font-bold text-3xl tracking-tighter leading-none group-hover:opacity-80 transition">FAYM</h1>
                 </a>
                 <div class="flex items-center gap-4">
-                    <button onclick="handleAuthClick()"
-                        class="p-2 hover:bg-gray-100 rounded-full transition relative"><i class="bi bi-person text-xl"
-                            id="authIcon"></i><span id="authStatusDot"
-                            class="absolute top-2 right-2 w-2 h-2 bg-green-500 rounded-full hidden"></span></button>
-                    <button onclick="toggleCart()"
-                        class="p-2 hover:bg-gray-100 rounded-full transition relative group"><i
-                            class="bi bi-bag text-xl group-hover:hidden"></i><i
-                            class="bi bi-bag-fill text-xl hidden group-hover:block"></i><span id="cartCount"
-                            class="absolute -top-0 -right-0 bg-brand-dark text-white text-[10px] font-bold h-4 w-4 rounded-full flex items-center justify-center opacity-0 transition-opacity">0</span></button>
+                    <button onclick="handleAuthClick()" class="p-2 hover:bg-gray-100 rounded-full transition relative"><i class="bi bi-person text-xl" id="authIcon"></i><span id="authStatusDot" class="absolute top-2 right-2 w-2 h-2 bg-green-500 rounded-full hidden"></span></button>
+                    <button onclick="toggleCart()" class="p-2 hover:bg-gray-100 rounded-full transition relative group"><i class="bi bi-bag text-xl group-hover:hidden"></i><i class="bi bi-bag-fill text-xl hidden group-hover:block"></i><span id="cartCount" class="absolute -top-0 -right-0 bg-brand-dark text-white text-[10px] font-bold h-4 w-4 rounded-full flex items-center justify-center opacity-0 transition-opacity">0</span></button>
                 </div>
             </div>
         </div>
     </header>
 
     <div id="searchOverlay" class="fixed inset-0 z-[60] hidden">
-        <div id="searchBackdrop" onclick="toggleSearch()"
-            class="absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity duration-300 opacity-0"></div>
-
-        <div id="searchDrawer"
-            class="relative bg-white w-full shadow-2xl transform -translate-y-full transition-transform duration-300 ease-out flex flex-col items-center pt-6 pb-10 px-4 md:px-8">
+        <div id="searchBackdrop" onclick="toggleSearch()" class="absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity duration-300 opacity-0"></div>
+        <div id="searchDrawer" class="relative bg-white w-full shadow-2xl transform -translate-y-full transition-transform duration-300 ease-out flex flex-col items-center pt-6 pb-10 px-4 md:px-8">
             <div class="max-w-4xl w-full">
                 <div class="flex justify-between items-center mb-6">
                     <h2 class="text-3xl font-serif">Search</h2>
-                    <button onclick="toggleSearch()" class="text-3xl hover:rotate-90 transition p-2">&times;</button>
+                    <button onclick="toggleSearch()" class="text-3xl hover:rotate-90 transition p-2">×</button>
                 </div>
                 <div class="relative mb-8 bg-gray-50 rounded-full shadow-inner border border-gray-200">
-                    <input type="text" id="searchInput" placeholder="Search products, colors..."
-                        class="w-full text-xl bg-transparent border-none py-4 px-6 focus:outline-none focus:ring-0"
-                        onkeyup="if(event.key === 'Enter') runSearchOrFilter()">
-                    <button onclick="runSearchOrFilter()"
-                        class="absolute right-6 top-1/2 -translate-y-1/2 text-2xl text-gray-400 hover:text-black"><i
-                            class="bi bi-arrow-right"></i></button>
+                    <input type="text" id="searchInput" placeholder="Search products, colors..." class="w-full text-xl bg-transparent border-none py-4 px-6 focus:outline-none focus:ring-0" onkeyup="if(event.key === 'Enter') runSearchOrFilter()">
+                    <button onclick="runSearchOrFilter()" class="absolute right-6 top-1/2 -translate-y-1/2 text-2xl text-gray-400 hover:text-black"><i class="bi bi-arrow-right"></i></button>
                 </div>
                 <div class="flex flex-wrap gap-3 items-center justify-center">
-                    <select id="filterCategory" onchange="runSearchOrFilter()"
-                        class="px-4 py-2 border rounded-full hover:border-black transition cursor-pointer bg-white text-sm">
-                        <option value="all">All Categories</option>
-                    </select>
-                    
-                    <select id="sortOrder" onchange="runSearchOrFilter()" 
-                        class="px-4 py-2 border rounded-full hover:border-black transition cursor-pointer bg-white text-sm">
+                    <select id="filterCategory" onchange="runSearchOrFilter()" class="px-4 py-2 border rounded-full hover:border-black transition cursor-pointer bg-white text-sm"><option value="all">All Categories</option></select>
+                    <select id="sortOrder" onchange="runSearchOrFilter()" class="px-4 py-2 border rounded-full hover:border-black transition cursor-pointer bg-white text-sm">
                         <option value="newest">Newest Arrivals</option>
                         <option value="priceLow">Price: Low to High</option>
                         <option value="priceHigh">Price: High to Low</option>
                     </select>
-
-                    <select id="filterPrice" onchange="runSearchOrFilter()"
-                        class="px-4 py-2 border rounded-full hover:border-black transition cursor-pointer bg-white text-sm">
+                    <select id="filterPrice" onchange="runSearchOrFilter()" class="px-4 py-2 border rounded-full hover:border-black transition cursor-pointer bg-white text-sm">
                         <option value="all">Any Price</option>
                         <option value="under100">Under GH₵100</option>
                         <option value="100to300">GH₵100 - GH₵300</option>
                         <option value="over300">Over GH₵300</option>
                     </select>
-                    <label
-                        class="flex items-center gap-2 cursor-pointer select-none border px-4 py-2 rounded-full hover:border-black transition bg-white text-sm"><input
-                            type="checkbox" id="filterStock" onchange="runSearchOrFilter()"
-                            class="accent-black"><span>In Stock Only</span></label>
-                    <button onclick="resetFilters()"
-                        class="text-red-500 text-xs hover:underline font-bold px-2">Reset</button>
+                    <label class="flex items-center gap-2 cursor-pointer select-none border px-4 py-2 rounded-full hover:border-black transition bg-white text-sm"><input type="checkbox" id="filterStock" onchange="runSearchOrFilter()" class="accent-black"><span>In Stock Only</span></label>
+                    <button onclick="resetFilters()" class="text-red-500 text-xs hover:underline font-bold px-2">Reset</button>
                 </div>
             </div>
         </div>
@@ -116,17 +103,10 @@
 
     <div id="heroSection" class="relative h-[85vh] w-full overflow-hidden bg-gray-100">
         <div id="sliderContainer" class="absolute inset-0 w-full h-full"></div>
-        <div
-            class="absolute inset-x-0 bottom-0 pb-20 pt-40 bg-gradient-to-t from-black/60 to-transparent flex flex-col items-center justify-center text-center px-4 z-40 pointer-events-none">
-            <h2 id="heroTitle"
-                class="text-4xl md:text-6xl font-serif text-white mb-2 drop-shadow-xl opacity-0 transition-opacity duration-500">
-            </h2>
-            <p id="heroSubtext"
-                class="text-lg md:text-xl text-white/90 mb-6 drop-shadow-md font-light tracking-wide opacity-0 transition-opacity duration-500 delay-100 max-w-xl">
-            </p>
-            <button onclick="scrollToGrid()"
-                class="pointer-events-auto bg-white text-black px-8 py-3 rounded-full font-semibold hover:bg-brand-accent hover:text-white transition-all transform hover:scale-105 shadow-lg opacity-0 transition-opacity duration-700 delay-200"
-                id="heroBtn">Explore Collection</button>
+        <div class="absolute inset-x-0 bottom-0 pb-20 pt-40 bg-gradient-to-t from-black/60 to-transparent flex flex-col items-center justify-center text-center px-4 z-40 pointer-events-none">
+            <h2 id="heroTitle" class="text-4xl md:text-6xl font-serif text-white mb-2 drop-shadow-xl opacity-0 transition-opacity duration-500"></h2>
+            <p id="heroSubtext" class="text-lg md:text-xl text-white/90 mb-6 drop-shadow-md font-light tracking-wide opacity-0 transition-opacity duration-500 delay-100 max-w-xl"></p>
+            <button onclick="scrollToGrid()" class="pointer-events-auto bg-white text-black px-8 py-3 rounded-full font-semibold hover:bg-brand-accent hover:text-white transition-all transform hover:scale-105 shadow-lg opacity-0 transition-opacity duration-700 delay-200" id="heroBtn">Explore Collection</button>
         </div>
     </div>
 
@@ -144,85 +124,44 @@
                 <span class="text-xs font-bold tracking-widest text-brand-accent uppercase mb-2 block">Collection</span>
                 <div class="flex items-center gap-4">
                     <h2 class="text-3xl md:text-4xl font-serif">All Products</h2>
-                    <button id="gridResetBtn" onclick="resetFilters()"
-                        class="hidden px-4 py-1 rounded-full border border-red-200 text-red-500 text-xs font-bold uppercase hover:bg-red-50 transition">Clear
-                        Filter</button>
+                    <button id="gridResetBtn" onclick="resetFilters()" class="hidden px-4 py-1 rounded-full border border-red-200 text-red-500 text-xs font-bold uppercase hover:bg-red-50 transition">Clear Filter</button>
                 </div>
             </div>
         </div>
         <div id="productGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-y-12 gap-x-8">
-            <div class="col-span-full py-20 flex justify-center">
-                <div class="loader"></div>
-            </div>
+            <div class="col-span-full py-20 flex justify-center"><div class="loader"></div></div>
         </div>
     </main>
 
-    <div id="cartDrawer"
-        class="fixed inset-y-0 right-0 w-full sm:w-[400px] bg-white shadow-2xl z-[70] transform translate-x-full transition-transform duration-300 flex flex-col">
-        <div class="p-6 border-b flex justify-between items-center bg-gray-50">
-            <h2 class="text-xl font-bold font-serif">Shopping Cart</h2><button onclick="toggleCart()"
-                class="text-2xl hover:text-gray-500">&times;</button>
-        </div>
+    <div id="cartDrawer" class="fixed inset-y-0 right-0 w-full sm:w-[400px] bg-white shadow-2xl z-[70] transform translate-x-full transition-transform duration-300 flex flex-col">
+        <div class="p-6 border-b flex justify-between items-center bg-gray-50"><h2 class="text-xl font-bold font-serif">Shopping Cart</h2><button onclick="toggleCart()" class="text-2xl hover:text-gray-500">×</button></div>
         <div id="cartItems" class="flex-1 overflow-y-auto p-6 space-y-6"></div>
         <div class="p-6 border-t bg-gray-50">
-            <div class="flex justify-between items-center mb-4"><span class="text-gray-600">Subtotal</span><span
-                    id="cartSubtotal" class="font-bold text-xl">GH₵0</span></div><button onclick="checkout()"
-                class="w-full bg-black text-white py-4 rounded-lg font-bold hover:bg-gray-800 transition">Checkout</button>
+            <div class="flex justify-between items-center mb-4"><span class="text-gray-600">Subtotal</span><span id="cartSubtotal" class="font-bold text-xl">GH₵0</span></div><button onclick="checkout()" class="w-full bg-black text-white py-4 rounded-lg font-bold hover:bg-gray-800 transition">Checkout</button>
         </div>
     </div>
-    <div onclick="toggleCart()" id="cartBackdrop"
-        class="fixed inset-0 bg-black/50 z-[65] hidden transition-opacity opacity-0"></div>
+    <div onclick="toggleCart()" id="cartBackdrop" class="fixed inset-0 bg-black/50 z-[65] hidden transition-opacity opacity-0"></div>
 
     <div id="productModal" class="fixed inset-0 z-[80] hidden items-center justify-center p-4">
         <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" onclick="closeModal()"></div>
-        <div
-            class="bg-white w-full max-w-5xl rounded-2xl overflow-hidden shadow-2xl z-10 relative flex flex-col md:flex-row max-h-[90vh]">
-            <button onclick="closeModal()"
-                class="absolute top-4 right-4 z-20 bg-white/50 p-2 rounded-full hover:bg-white transition"><i
-                    class="bi bi-x-lg"></i></button>
+        <div class="bg-white w-full max-w-5xl rounded-2xl overflow-hidden shadow-2xl z-10 relative flex flex-col md:flex-row max-h-[90vh]">
+            <button onclick="closeModal()" class="absolute top-4 right-4 z-20 bg-white/50 p-2 rounded-full hover:bg-white transition"><i class="bi bi-x-lg"></i></button>
             <div class="w-full md:w-1/2 bg-gray-100 relative h-[40vh] md:h-auto group">
                 <img id="modalImg" src="" class="w-full h-full object-cover">
-                <button onclick="changeGalleryImage(-1)"
-                    class="absolute left-2 top-1/2 -translate-y-1/2 bg-white/80 p-2 rounded-full hover:bg-white transition hidden"
-                    id="galleryPrevBtn"><i class="bi bi-chevron-left"></i></button>
-                <button onclick="changeGalleryImage(1)"
-                    class="absolute right-2 top-1/2 -translate-y-1/2 bg-white/80 p-2 rounded-full hover:bg-white transition hidden"
-                    id="galleryNextBtn"><i class="bi bi-chevron-right"></i></button>
-                <div id="galleryThumbnails"
-                    class="absolute bottom-4 left-0 right-0 flex justify-center gap-2 px-4 overflow-x-auto scrollbar-hide py-2">
-                </div>
+                <button onclick="changeGalleryImage(-1)" class="absolute left-2 top-1/2 -translate-y-1/2 bg-white/80 p-2 rounded-full hover:bg-white transition hidden" id="galleryPrevBtn"><i class="bi bi-chevron-left"></i></button>
+                <button onclick="changeGalleryImage(1)" class="absolute right-2 top-1/2 -translate-y-1/2 bg-white/80 p-2 rounded-full hover:bg-white transition hidden" id="galleryNextBtn"><i class="bi bi-chevron-right"></i></button>
+                <div id="galleryThumbnails" class="absolute bottom-4 left-0 right-0 flex justify-center gap-2 px-4 overflow-x-auto scrollbar-hide py-2"></div>
             </div>
             <div class="w-full md:w-1/2 p-8 md:p-12 overflow-y-auto bg-white">
                 <div class="flex justify-between items-start">
-                    <div><span id="modalCategory"
-                            class="text-xs font-bold text-brand-accent uppercase tracking-wider"></span>
-                        <h2 id="modalTitle" class="text-3xl font-serif mt-1 mb-2"></h2><span id="modalPrice"
-                            class="text-xl font-bold"></span><span id="modalOldPrice"
-                            class="text-sm text-gray-400 line-through hidden ml-2"></span>
-                    </div>
-                    <button onclick="toggleLikeFromModal()" id="modalLikeBtn"
-                        class="text-2xl text-gray-300 hover:text-red-500 transition"><i
-                            class="bi bi-heart"></i></button>
+                    <div><span id="modalCategory" class="text-xs font-bold text-brand-accent uppercase tracking-wider"></span><h2 id="modalTitle" class="text-3xl font-serif mt-1 mb-2"></h2><span id="modalPrice" class="text-xl font-bold"></span><span id="modalOldPrice" class="text-sm text-gray-400 line-through hidden ml-2"></span></div>
+                    <button onclick="toggleLikeFromModal()" id="modalLikeBtn" class="text-2xl text-gray-300 hover:text-red-500 transition"><i class="bi bi-heart"></i></button>
                 </div>
                 <div class="mt-8 space-y-6">
-                    <div><span class="text-sm font-semibold text-gray-700 block mb-2">Color: <span
-                                id="selectedColorName" class="text-black"></span></span>
-                        <div id="modalColors" class="flex gap-3"></div>
-                    </div>
-                    <div>
-                        <div class="flex justify-between mb-2"><span
-                                class="text-sm font-semibold text-gray-700">Size</span><button
-                                onclick="openSizeGuideModal()"
-                                class="text-xs underline text-gray-500 hover:text-black">Size Guide</button></div>
-                        <div id="modalSizes" class="grid grid-cols-4 gap-2"></div>
-                    </div>
+                    <div><span class="text-sm font-semibold text-gray-700 block mb-2">Color: <span id="selectedColorName" class="text-black"></span></span><div id="modalColors" class="flex gap-3"></div></div>
+                    <div><div class="flex justify-between mb-2"><span class="text-sm font-semibold text-gray-700">Size</span><button onclick="openSizeGuideModal()" class="text-xs underline text-gray-500 hover:text-black">Size Guide</button></div><div id="modalSizes" class="grid grid-cols-4 gap-2"></div></div>
                     <p id="modalDesc" class="text-gray-600 text-sm"></p>
-                    <button id="addToCartBtn" onclick="addToCartFromModal()" disabled
-                        class="w-full py-4 bg-gray-200 text-gray-400 font-bold rounded-lg transition-all text-sm uppercase cursor-not-allowed">Select
-                        Options</button>
-                    <div id="addSuccessMsg"
-                        class="hidden bg-green-50 text-green-700 p-3 rounded text-center text-sm font-bold border border-green-200">
-                        Added to Cart!</div>
+                    <button id="addToCartBtn" onclick="addToCartFromModal()" disabled class="w-full py-4 bg-gray-200 text-gray-400 font-bold rounded-lg transition-all text-sm uppercase cursor-not-allowed">Select Options</button>
                 </div>
             </div>
         </div>
@@ -230,58 +169,34 @@
 
     <div id="checkoutModal" class="fixed inset-0 z-[85] hidden items-center justify-center p-4">
         <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" onclick="closeCheckout()"></div>
-        <div
-            class="bg-white w-full max-w-5xl h-[90vh] md:h-auto md:max-h-[90vh] rounded-2xl overflow-hidden shadow-2xl z-10 relative flex flex-col md:flex-row">
-            <button onclick="closeCheckout()"
-                class="absolute top-4 right-4 z-20 bg-white/50 p-2 rounded-full hover:bg-white transition"><i
-                    class="bi bi-x-lg"></i></button>
-
+        <div class="bg-white w-full max-w-5xl h-[90vh] md:h-auto md:max-h-[90vh] rounded-2xl overflow-hidden shadow-2xl z-10 relative flex flex-col md:flex-row">
+            <button onclick="closeCheckout()" class="absolute top-4 right-4 z-20 bg-white/50 p-2 rounded-full hover:bg-white transition"><i class="bi bi-x-lg"></i></button>
             <div class="w-full md:w-3/5 p-8 overflow-y-auto bg-gray-50">
                 <h2 class="text-3xl font-serif mb-6">Checkout</h2>
-
                 <div class="flex gap-4 border-b border-gray-200 mb-6">
-                    <button onclick="setDeliveryMethod('delivery')" id="tabDelivery"
-                        class="pb-2 text-lg font-bold border-b-2 border-black transition">Delivery Service</button>
-                    <button onclick="setDeliveryMethod('pickup')" id="tabPickup"
-                        class="pb-2 text-lg font-bold text-gray-400 border-b-2 border-transparent hover:text-gray-600 transition">Store
-                        Pickup</button>
+                    <button onclick="setDeliveryMethod('delivery')" id="tabDelivery" class="pb-2 text-lg font-bold border-b-2 border-black transition">Delivery Service</button>
+                    <button onclick="setDeliveryMethod('pickup')" id="tabPickup" class="pb-2 text-lg font-bold text-gray-400 border-b-2 border-transparent hover:text-gray-600 transition">Store Pickup</button>
                 </div>
-
                 <div class="mb-6 space-y-4">
                     <h3 class="font-bold text-sm uppercase tracking-wide text-gray-500">Contact Information</h3>
-                    <div class="grid grid-cols-2 gap-4">
-                        <input type="text" id="chkName" placeholder="Full Name"
-                            class="w-full p-3 bg-white border border-gray-200 rounded focus:border-black outline-none transition">
-                        <input type="tel" id="chkPhone" placeholder="Phone Number"
-                            class="w-full p-3 bg-white border border-gray-200 rounded focus:border-black outline-none transition">
+                    <div class="space-y-3">
+                        <input type="text" id="chkName" placeholder="Full Name" class="w-full p-3 bg-white border border-gray-200 rounded focus:border-black outline-none transition">
+                        <div class="grid grid-cols-2 gap-4">
+                            <input type="email" id="chkEmail" placeholder="Email Address" class="w-full p-3 bg-white border border-gray-200 rounded focus:border-black outline-none transition">
+                            <input type="tel" id="chkPhone" placeholder="Phone Number" class="w-full p-3 bg-white border border-gray-200 rounded focus:border-black outline-none transition">
+                        </div>
                     </div>
                 </div>
-
                 <div id="paneDelivery">
-                    <label class="block text-xs uppercase font-bold text-gray-500 mb-1 mt-4">Delivery Location (Select
-                        Region First)</label>
+                    <label class="block text-xs uppercase font-bold text-gray-500 mb-1 mt-4">Delivery Location</label>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
-                        <select id="chkRegion" onchange="onRegionChange()"
-                            class="w-full p-3 border rounded bg-gray-50 focus:outline-none focus:border-black">
-                            <option value="">Select Region</option>
-                        </select>
-                        <select id="chkTown" onchange="onTownChange()"
-                            class="w-full p-3 border rounded bg-gray-50 focus:outline-none focus:border-black">
-                            <option value="">Select Town/City</option>
-                        </select>
+                        <select id="chkRegion" onchange="onRegionChange()" class="w-full p-3 border rounded bg-gray-50 focus:outline-none focus:border-black"><option value="">Select Region</option></select>
+                        <select id="chkTown" onchange="onTownChange()" class="w-full p-3 border rounded bg-gray-50 focus:outline-none focus:border-black"><option value="">Select Town/City</option></select>
                     </div>
-                    <select id="chkArea" onchange="onAreaChange()"
-                        class="w-full p-3 border rounded bg-gray-50 focus:outline-none focus:border-black mb-3">
-                        <option value="">Select Area/Locality</option>
-                    </select>
-
-                    <label class="block text-xs uppercase font-bold text-gray-500 mb-1">Detailed Address /
-                        Landmarks</label>
-                    <textarea id="chkAddress"
-                        placeholder="E.g., House Number, Building Name, Near [Landmark], Digital Address"
-                        class="w-full p-3 border rounded bg-gray-50 focus:outline-none focus:border-black h-24"></textarea>
+                    <select id="chkArea" onchange="onAreaChange()" class="w-full p-3 border rounded bg-gray-50 focus:outline-none focus:border-black mb-3"><option value="">Select Area/Locality</option></select>
+                    <label class="block text-xs uppercase font-bold text-gray-500 mb-1">Detailed Address</label>
+                    <textarea id="chkAddress" placeholder="House Number, Building Name, Landmarks" class="w-full p-3 border rounded bg-gray-50 focus:outline-none focus:border-black h-24"></textarea>
                 </div>
-
                 <div id="panePickup" class="hidden">
                     <h3 class="font-bold text-sm uppercase tracking-wide text-gray-500 mb-2">Pickup Location</h3>
                     <div class="bg-black text-white p-6 rounded-lg mb-4">
@@ -290,44 +205,19 @@
                         <div class="text-xs bg-white/20 inline-block px-2 py-1 rounded">Open Mon-Sat: 9am - 8pm</div>
                     </div>
                 </div>
-
-                <div class="bg-blue-50 text-blue-800 p-4 rounded-lg flex gap-3 items-start">
-                    <i class="bi bi-calendar-check mt-1"></i>
-                    <div>
-                        <span class="font-bold text-sm block">Estimated Completion</span>
-                        <span id="chkEstDate" class="text-sm">...</span>
-                    </div>
-                </div>
+                <div class="bg-blue-50 text-blue-800 p-4 rounded-lg flex gap-3 items-start"><i class="bi bi-calendar-check mt-1"></i><div><span class="font-bold text-sm block">Estimated Completion</span><span id="chkEstDate" class="text-sm">...</span></div></div>
             </div>
-
             <div class="w-full md:w-2/5 p-8 bg-white border-l border-gray-100 flex flex-col">
                 <h3 class="font-bold text-lg mb-4">Order Summary</h3>
-                <div id="chkItems" class="flex-1 overflow-y-auto space-y-4 mb-4 pr-2 max-h-[300px]">
-                    </div>
-
+                <div id="chkItems" class="flex-1 overflow-y-auto space-y-4 mb-4 pr-2 max-h-[300px]"></div>
                 <div class="space-y-2 border-t pt-4 text-sm">
-                    <div class="flex justify-between"><span>Subtotal</span><span id="chkSubtotal"
-                            class="font-bold"></span></div>
-                    <div class="flex justify-between items-center">
-                        <span>Delivery Fee</span>
-                        <span id="chkDeliveryFee" class="font-bold">GH₵0</span>
-                    </div>
-                    <div class="flex justify-between text-xs text-gray-500 italic"><span id="chkDistanceInfo"></span>
-                    </div>
+                    <div class="flex justify-between"><span>Subtotal</span><span id="chkSubtotal" class="font-bold"></span></div>
+                    <div class="flex justify-between items-center"><span>Delivery Fee</span><span id="chkDeliveryFee" class="font-bold">GH₵0</span></div>
+                    <div class="flex justify-between text-xs text-gray-500 italic"><span id="chkDistanceInfo"></span></div>
                 </div>
-
-                <div class="flex justify-between text-xl font-bold mt-4 border-t pt-4">
-                    <span>Total</span>
-                    <span id="chkTotal"></span>
-                </div>
-
-                <button id="payBtn" onclick="processPayment()"
-                    class="w-full bg-black text-white py-4 rounded-lg font-bold mt-6 hover:bg-brand-accent transition shadow-lg flex justify-center gap-2 items-center">
-                    <i class="bi bi-credit-card"></i> <span>Pay Now</span>
-                </button>
-                <div class="text-center mt-3 flex items-center justify-center gap-2 text-xs text-gray-400">
-                    <i class="bi bi-shield-lock-fill"></i> Secured by Paystack
-                </div>
+                <div class="flex justify-between text-xl font-bold mt-4 border-t pt-4"><span>Total</span><span id="chkTotal"></span></div>
+                <button id="payBtn" onclick="processPayment()" class="w-full bg-black text-white py-4 rounded-lg font-bold mt-6 hover:bg-brand-accent transition shadow-lg flex justify-center gap-2 items-center"><i class="bi bi-credit-card"></i> <span>Pay Now</span></button>
+                <div class="text-center mt-3 flex items-center justify-center gap-2 text-xs text-gray-400"><i class="bi bi-shield-lock-fill"></i> Secured by Paystack</div>
             </div>
         </div>
     </div>
@@ -335,7 +225,7 @@
     <div id="sizeGuideModal" class="fixed inset-0 z-[85] hidden items-center justify-center p-4">
         <div class="absolute inset-0 bg-black/60" onclick="closeSizeGuide()"></div>
         <div class="bg-white rounded-lg p-8 z-10 max-w-lg w-full relative">
-            <button onclick="closeSizeGuide()" class="absolute top-4 right-4 text-xl">&times;</button>
+            <button onclick="closeSizeGuide()" class="absolute top-4 right-4 text-xl">×</button>
             <h3 class="font-serif text-2xl mb-4">Size Guide</h3>
             <div id="sizeGuideContent" class="text-sm text-gray-600 space-y-2"></div>
         </div>
@@ -348,77 +238,44 @@
                 <div id="loginForm">
                     <h2 class="text-2xl font-serif mb-6 text-center">Welcome Back</h2>
                     <form onsubmit="handleLogin(event)" class="space-y-4" novalidate>
-                        <div>
-                            <input type="email" name="email" placeholder="Email"
-                                class="w-full p-3 border rounded focus:outline-none focus:border-black transition"
-                                oninput="clearError(this)">
-                            <p class="text-red-500 text-xs mt-1 hidden error-msg"></p>
-                        </div>
-                        <div>
-                            <input type="password" name="password" placeholder="Password"
-                                class="w-full p-3 border rounded focus:outline-none focus:border-black transition"
-                                oninput="clearError(this)">
-                            <p class="text-red-500 text-xs mt-1 hidden error-msg"></p>
-                        </div>
-                        <div class="flex justify-end">
-                            <button type="button" onclick="openForgotPass()"
-                                class="text-xs text-gray-500 hover:text-black">Forgot Password?</button>
-                        </div>
+                        <div><input type="email" name="email" placeholder="Email" class="w-full p-3 border rounded focus:outline-none focus:border-black transition" oninput="clearError(this)"><p class="text-red-500 text-xs mt-1 hidden error-msg"></p></div>
+                        <div><input type="password" name="password" placeholder="Password" class="w-full p-3 border rounded focus:outline-none focus:border-black transition" oninput="clearError(this)"><p class="text-red-500 text-xs mt-1 hidden error-msg"></p></div>
+                        <div class="flex justify-end"><button type="button" onclick="openForgotPass()" class="text-xs text-gray-500 hover:text-black">Forgot Password?</button></div>
                         <button type="submit" class="w-full bg-black text-white py-3 rounded font-bold">Log In</button>
                     </form>
-                    <p class="mt-4 text-center text-sm text-gray-500">No account? <button
-                            onclick="switchAuth('register')" class="text-black underline font-bold">Sign Up</button></p>
+                    <p class="mt-4 text-center text-sm text-gray-500">No account? <button onclick="switchAuth('register')" class="text-black underline font-bold">Sign Up</button></p>
                 </div>
+                
                 <div id="forgotForm" class="hidden">
                     <h2 class="text-2xl font-serif mb-6 text-center">Reset Password</h2>
-                    <p class="text-sm text-gray-500 text-center mb-4">Enter your email to receive a One-Time Password
-                        (OTP).</p>
-                    <form onsubmit="handleForgotPass(event)" class="space-y-4" novalidate>
-                        <div>
-                            <input type="email" name="email" placeholder="Email Address"
-                                class="w-full p-3 border rounded focus:outline-none focus:border-black transition"
-                                oninput="clearError(this)">
-                            <p class="text-red-500 text-xs mt-1 hidden error-msg"></p>
-                        </div>
-                        <button type="submit" class="w-full bg-black text-white py-3 rounded font-bold">Send
-                            OTP</button>
-                    </form>
-                    <p class="mt-4 text-center text-sm text-gray-500"><button onclick="switchAuth('login')"
-                            class="text-gray-500 hover:text-black">Back to Login</button></p>
+                    <div id="forgotStep1">
+                        <p class="text-sm text-gray-500 text-center mb-4">Enter your email to receive a code.</p>
+                        <form onsubmit="handleForgotPassStep1(event)" class="space-y-4">
+                            <div><input type="email" id="fpEmail" placeholder="Email Address" class="w-full p-3 border rounded focus:outline-none focus:border-black transition" required></div>
+                            <button type="submit" class="w-full bg-black text-white py-3 rounded font-bold">Send OTP</button>
+                        </form>
+                    </div>
+                    <div id="forgotStep2" class="hidden">
+                        <p class="text-sm text-gray-500 text-center mb-4">Code sent! Check your email.</p>
+                        <form onsubmit="handleForgotPassStep2(event)" class="space-y-4">
+                            <div><input type="text" id="fpOtp" placeholder="Enter 6-digit Code" class="w-full p-3 border rounded focus:outline-none focus:border-black tracking-widest text-center font-bold" maxlength="6" required></div>
+                            <div><input type="password" id="fpNewPass" placeholder="New Password" class="w-full p-3 border rounded focus:outline-none focus:border-black transition" required></div>
+                            <button type="submit" class="w-full bg-black text-white py-3 rounded font-bold">Reset Password</button>
+                        </form>
+                    </div>
+                    <p class="mt-4 text-center text-sm text-gray-500"><button onclick="switchAuth('login')" class="text-gray-500 hover:text-black">Back to Login</button></p>
                 </div>
 
                 <div id="registerForm" class="hidden">
                     <h2 class="text-2xl font-serif mb-6 text-center">Create Account</h2>
                     <form onsubmit="handleRegister(event)" class="space-y-4" novalidate>
-                        <div>
-                            <input type="text" name="fullName" placeholder="Name"
-                                class="w-full p-3 border rounded focus:outline-none focus:border-black transition"
-                                oninput="clearError(this)">
-                            <p class="text-red-500 text-xs mt-1 hidden error-msg"></p>
-                        </div>
-                        <div>
-                            <input type="email" name="email" placeholder="Email"
-                                class="w-full p-3 border rounded focus:outline-none focus:border-black transition"
-                                oninput="clearError(this)">
-                            <p class="text-red-500 text-xs mt-1 hidden error-msg"></p>
-                        </div>
-                        <div>
-                            <input type="tel" name="phone" placeholder="Phone"
-                                class="w-full p-3 border rounded focus:outline-none focus:border-black transition"
-                                oninput="clearError(this)">
-                            <p class="text-red-500 text-xs mt-1 hidden error-msg"></p>
-                        </div>
-                        <div>
-                            <input type="password" name="password" placeholder="Password (Min 6)"
-                                class="w-full p-3 border rounded focus:outline-none focus:border-black transition"
-                                oninput="clearError(this)">
-                            <p class="text-red-500 text-xs mt-1 hidden error-msg"></p>
-                        </div>
-                        <div id="regError" class="hidden text-red-500 text-xs text-center"></div>
+                        <div><input type="text" name="fullName" placeholder="Name" class="w-full p-3 border rounded focus:outline-none focus:border-black transition" oninput="clearError(this)"><p class="text-red-500 text-xs mt-1 hidden error-msg"></p></div>
+                        <div><input type="email" name="email" placeholder="Email" class="w-full p-3 border rounded focus:outline-none focus:border-black transition" oninput="clearError(this)"><p class="text-red-500 text-xs mt-1 hidden error-msg"></p></div>
+                        <div><input type="tel" name="phone" placeholder="Phone" class="w-full p-3 border rounded focus:outline-none focus:border-black transition" oninput="clearError(this)"><p class="text-red-500 text-xs mt-1 hidden error-msg"></p></div>
+                        <div><input type="password" name="password" placeholder="Password (Min 6)" class="w-full p-3 border rounded focus:outline-none focus:border-black transition" oninput="clearError(this)"><p class="text-red-500 text-xs mt-1 hidden error-msg"></p></div>
                         <button type="submit" class="w-full bg-black text-white py-3 rounded font-bold">Sign Up</button>
                     </form>
-                    <p class="mt-4 text-center text-sm text-gray-500">Have account? <button
-                            onclick="switchAuth('login')" class="text-black underline font-bold">Log In</button></p>
+                    <p class="mt-4 text-center text-sm text-gray-500">Have account? <button onclick="switchAuth('login')" class="text-black underline font-bold">Log In</button></p>
                 </div>
             </div>
         </div>
@@ -429,76 +286,47 @@
         <div class="bg-white w-full max-w-md max-h-[90vh] overflow-y-auto rounded-2xl p-8 z-10 relative shadow-2xl">
             <div class="flex justify-between items-center mb-6">
                 <h2 class="text-2xl font-serif">My Profile</h2>
-                <button onclick="closeProfile()" class="text-2xl hover:text-gray-500">&times;</button>
+                <button onclick="closeProfile()" class="text-2xl hover:text-gray-500">×</button>
             </div>
-
             <div class="flex gap-4 border-b border-gray-200 mb-6">
-                <button onclick="switchProfileTab('details')" id="tabDetails"
-                    class="pb-2 text-sm font-bold border-b-2 border-black transition">Details</button>
-                <button onclick="switchProfileTab('orders')" id="tabOrders"
-                    class="pb-2 text-sm font-bold text-gray-400 border-b-2 border-transparent hover:text-gray-600 transition">Order
-                    History</button>
+                <button onclick="switchProfileTab('details')" id="tabDetails" class="pb-2 text-sm font-bold border-b-2 border-black transition">Details</button>
+                <button onclick="switchProfileTab('orders')" id="tabOrders" class="pb-2 text-sm font-bold text-gray-400 border-b-2 border-transparent hover:text-gray-600 transition">History</button>
+                <button onclick="switchProfileTab('saved')" id="tabSaved" class="pb-2 text-sm font-bold text-gray-400 border-b-2 border-transparent hover:text-gray-600 transition">Saved</button>
             </div>
-
             <div id="paneDetails">
                 <form onsubmit="handleUpdateProfile(event)" class="space-y-4">
-                    <div>
-                        <label class="block text-sm font-bold text-gray-700 mb-1">Full Name</label>
-                        <input type="text" id="profName" required class="w-full p-3 border rounded bg-gray-50 text-sm">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-bold text-gray-700 mb-1">Email</label>
-                        <input type="email" id="profEmail" disabled
-                            class="w-full p-3 border rounded bg-gray-100 text-gray-500 cursor-not-allowed text-sm">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-bold text-gray-700 mb-1">Phone</label>
-                        <input type="tel" id="profPhone" required class="w-full p-3 border rounded bg-gray-50 text-sm">
-                    </div>
-
+                    <div><label class="block text-sm font-bold text-gray-700 mb-1">Full Name</label><input type="text" id="profName" required class="w-full p-3 border rounded bg-gray-50 text-sm"></div>
+                    <div><label class="block text-sm font-bold text-gray-700 mb-1">Email</label><input type="email" id="profEmail" disabled class="w-full p-3 border rounded bg-gray-100 text-gray-500 cursor-not-allowed text-sm"></div>
+                    <div><label class="block text-sm font-bold text-gray-700 mb-1">Phone</label><input type="tel" id="profPhone" required class="w-full p-3 border rounded bg-gray-50 text-sm"></div>
                     <div class="border-t pt-4 mt-4">
                         <h3 class="font-bold text-sm text-gray-900 mb-3">Change Password (Optional)</h3>
                         <div class="space-y-3">
-                            <input type="password" id="profCurrPass" placeholder="Current Password"
-                                class="w-full p-3 border rounded bg-gray-50 text-sm">
-                            <input type="password" id="profNewPass" placeholder="New Password"
-                                class="w-full p-3 border rounded bg-gray-50 text-sm">
-                            <input type="password" id="profRepPass" placeholder="Repeat New Password"
-                                class="w-full p-3 border rounded bg-gray-50 text-sm">
+                            <input type="password" id="profCurrPass" placeholder="Current Password" class="w-full p-3 border rounded bg-gray-50 text-sm">
+                            <input type="password" id="profNewPass" placeholder="New Password" class="w-full p-3 border rounded bg-gray-50 text-sm">
+                            <input type="password" id="profRepPass" placeholder="Repeat New Password" class="w-full p-3 border rounded bg-gray-50 text-sm">
                         </div>
                     </div>
-
-                    <button type="submit"
-                        class="w-full bg-black text-white py-3 rounded font-bold hover:bg-gray-800 transition">Save
-                        Changes</button>
+                    <button type="submit" class="w-full bg-black text-white py-3 rounded font-bold hover:bg-gray-800 transition">Save Changes</button>
                 </form>
-                <div class="mt-6 pt-6 border-t">
-                    <button onclick="logoutUser()"
-                        class="w-full py-3 text-red-600 font-bold hover:bg-red-50 rounded transition">Log Out</button>
-                </div>
+                <div class="mt-6 pt-6 border-t"><button onclick="logoutUser()" class="w-full py-3 text-red-600 font-bold hover:bg-red-50 rounded transition">Log Out</button></div>
             </div>
-
             <div id="paneOrders" class="hidden space-y-4">
-                <div class="text-center py-8 text-gray-500">
-                    <i class="bi bi-bag-x text-4xl mb-2 block"></i>
-                    <p>No orders found.</p>
-                </div>
+                <div class="text-center py-8 text-gray-500"><i class="bi bi-bag-x text-4xl mb-2 block"></i><p>No orders found.</p></div>
+            </div>
+            <div id="paneSaved" class="hidden space-y-4">
+                <div id="savedList" class="space-y-3"></div>
             </div>
         </div>
     </div>
 
-    <a href="https://wa.me/233535284878" target="_blank"
-        class="fixed bottom-6 right-6 bg-[#25D366] text-white p-4 rounded-full shadow-2xl z-40 hover:scale-110 transition flex items-center justify-center"><i
-            class="bi bi-whatsapp text-2xl"></i></a>
+    <a href="https://wa.me/233535284878" target="_blank" class="fixed bottom-6 right-6 bg-[#25D366] text-white p-4 rounded-full shadow-2xl z-40 hover:scale-110 transition flex items-center justify-center"><i class="bi bi-whatsapp text-2xl"></i></a>
 
     <footer class="bg-brand-dark text-white py-12 mt-auto border-t border-gray-800">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
                 <div>
                     <h2 class="text-2xl font-serif font-bold mb-4">FAYM</h2>
-                    <p class="text-gray-400 text-sm leading-relaxed max-w-xs">
-                        Elevating everyday style with premium quality essentials. Designed for the modern individual.
-                    </p>
+                    <p class="text-gray-400 text-sm leading-relaxed max-w-xs">Elevating everyday style with premium quality essentials.</p>
                 </div>
                 <div>
                     <h3 class="font-bold text-sm uppercase tracking-wider mb-4 text-brand-accent">Customer Care</h3>
@@ -513,23 +341,16 @@
                     <div class="flex gap-4 mb-4">
                         <a href="#" class="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center hover:bg-brand-accent hover:text-brand-dark transition"><i class="bi bi-instagram"></i></a>
                         <a href="#" class="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center hover:bg-brand-accent hover:text-brand-dark transition"><i class="bi bi-twitter-x"></i></a>
-                        <a href="https://wa.me/233535284878" class="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center hover:bg-brand-accent hover:text-brand-dark transition"><i class="bi bi-whatsapp"></i></a>
                     </div>
                     <p class="text-xs text-gray-500">Accra, Ghana</p>
                 </div>
             </div>
             <div class="border-t border-gray-800 pt-8 flex flex-col md:flex-row justify-between items-center text-xs text-gray-500">
-                <p>&copy; 2025 FAYM Store. All rights reserved.</p>
-                <div class="flex gap-4 mt-4 md:mt-0">
-                    <span>Terms</span>
-                    <span>Privacy</span>
-                    <span>Returns</span>
-                </div>
+                <p>© 2025 FAYM Store. All rights reserved.</p>
             </div>
         </div>
     </footer>
 
     <script src="script.js"></script>
 </body>
-
 </html>
