@@ -961,6 +961,7 @@ function updateCheckoutTotals() {
 }
 
 // --- PAYSTACK PAYMENT ---
+
 function processPayment() {
     // Note: Guest Checkout is allowed. We check fields, not "AppState.user".
     const name = document.getElementById('chkName').value;
@@ -974,7 +975,6 @@ function processPayment() {
 
     // Delivery Method Validation
     if (deliveryMethod === 'delivery' && deliveryFee === 0) {
-        // Did they select an area?
         const areaVal = document.getElementById('chkArea').value;
         if (!areaVal) {
             showToast("Please select a delivery area.", "error");
@@ -986,21 +986,61 @@ function processPayment() {
     const fee = deliveryMethod === 'delivery' ? deliveryFee : 0;
     const total = subtotal + fee;
 
-    const paystackKey = AppState.config['PAYSTACK_PUBLIC_KEY'];
+    // --- Helper to Submit to Backend ---
+    const submitOrder = (reference, paymentMethodLabel) => {
+        showToast("Processing Order...", "info");
+        const orderPayload = {
+            storeName: "FAYM",
+            customerName: name,
+            phone: phone,
+            location: address,
+            deliveryMethod: deliveryMethod,
+            paymentMethod: paymentMethodLabel || "Paystack",
+            grandTotal: total,
+            items: AppState.cart.map(c => ({
+                sku_id: c.sku,
+                item_name: c.product_name,
+                size: c.size,
+                qty: c.qty,
+                price: c.price
+            })),
+            paymentReference: reference
+        };
 
-    const userEmail = AppState.user ? AppState.user.email : "guest@faymstore.com";
+        fetch(API_URL, {
+            method: 'POST',
+            body: JSON.stringify({ action: 'processOrder', payload: orderPayload })
+        })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    showToast("Order Confirmed! ID: " + data.parentRef, "success");
+                    closeCheckout();
+                    AppState.cart = [];
+                    saveCart();
+                } else {
+                    showToast("Failed: " + data.message, "error");
+                }
+            })
+            .catch(err => showToast("Network Error: " + err, "error"));
+    };
 
+    // --- TEST MODE HANDLING ---
     if (window.location.protocol === 'file:' || AppState.config['TEST_MODE']) {
         console.log("Test Mode: Bypassing Paystack");
-        showToast("Test Mode: Payment Bypassed", "success");
+        submitOrder("TEST-" + Date.now(), "Test Mode");
         return;
     }
+
+    const paystackKey = AppState.config['PAYSTACK_PUBLIC_KEY'];
+    const userEmail = AppState.user ? AppState.user.email : "guest@faymstore.com";
 
     if (!paystackKey) {
         showToast("System Error: Payment Config Missing", "error");
         return;
     }
 
+    // --- PAYSTACK POPUP ---
     const handler = PaystackPop.setup({
         key: paystackKey,
         email: userEmail,
@@ -1014,40 +1054,7 @@ function processPayment() {
             ]
         },
         callback: function (response) {
-            const orderPayload = {
-                storeName: "FAYM",
-                customerName: name,
-                phone: phone,
-                location: address,
-                deliveryMethod: deliveryMethod,
-                paymentMethod: "Paystack",
-                grandTotal: total,
-                items: AppState.cart.map(c => ({
-                    sku_id: c.sku,
-                    item_name: c.product_name,
-                    size: c.size,
-                    qty: c.qty,
-                    price: c.price // Sent for reference, but Backend will RE-VERIFY price
-                })),
-                paymentReference: response.reference
-            };
-
-            fetch(API_URL, {
-                method: 'POST',
-                body: JSON.stringify({ action: 'processOrder', payload: orderPayload })
-            })
-                .then(res => res.json())
-                .then(data => {
-                    if (data.success) {
-                        showToast("Order Confirmed! ID: " + data.parentRef, "success");
-                        closeCheckout();
-                        AppState.cart = [];
-                        saveCart();
-                    } else {
-                        showToast("Failed: " + data.message, "error");
-                    }
-                })
-                .catch(err => showToast("Network Error: " + err, "error"));
+            submitOrder(response.reference, "Paystack");
         },
         onClose: function () {
             showToast('Transaction cancelled.', 'error');
