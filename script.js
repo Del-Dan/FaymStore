@@ -1170,8 +1170,6 @@ async function processPayment() {
 
     // --- COD FLOW ---
     if (paymentMethod === 'cod') {
-        // Confirmation for COD
-        if (!confirm("Confirm Cash on Delivery Order?")) return;
         submitOrder("N/A", "COD");
         return;
     }
