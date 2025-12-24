@@ -1499,4 +1499,14 @@ function showToast(msg, type = 'info') {
         setTimeout(() => el.remove(), 300);
     }, 4000);
 }
+
+// --- SUBSCRIPTION ---
+function handleSubscribe(e) {
+    e.preventDefault();
+    const input = e.target.querySelector('input');
+    if (input.value) {
+        showToast("Thanks for subscribing!", "success");
+        input.value = "";
+    }
+}
 // Last Updated: 2025-12-24 (Force Deploy)

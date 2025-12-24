@@ -527,48 +527,83 @@
         class="fixed bottom-6 right-6 bg-[#25D366] text-white p-4 rounded-full shadow-2xl z-40 hover:scale-110 transition flex items-center justify-center"><i
             class="bi bi-whatsapp text-2xl"></i></a>
 
-    <footer class="bg-brand-dark text-white py-12 mt-auto border-t border-gray-800">
+    <footer class="bg-black text-white py-16 mt-auto border-t border-gray-900 font-sans">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
-                <div>
-                    <h2 class="text-2xl font-serif font-bold mb-4">FAYM</h2>
-                    <p class="text-gray-400 text-sm leading-relaxed max-w-xs">
-                        Elevating everyday style with premium quality essentials. Designed for the modern individual.
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-12 mb-16">
+                <!-- Column 1: The Mission -->
+                <div class="space-y-6">
+                    <h2 class="text-3xl font-serif font-bold tracking-tight">FAYM</h2>
+                    <p class="text-gray-400 text-sm leading-relaxed max-w-sm">
+                        Faith-based fashion for the modern individual. We believe in elevating everyday style with
+                        premium quality essentials that speak to your values.
+                    </p>
+                    <p class="text-gray-500 text-xs italic border-l-2 border-white pl-4 py-1">
+                        "Whatever you do, work at it with all your heart, as working for the Lord." <br>— Colossians
+                        3:23
                     </p>
                 </div>
+
+                <!-- Column 2: Contact (Replaces Links) -->
                 <div>
-                    <h3 class="font-bold text-sm uppercase tracking-wider mb-4 text-brand-accent">Customer Care</h3>
-                    <ul class="space-y-2 text-sm text-gray-400">
-                        <li><button onclick="openSizeGuideModal()" class="hover:text-white transition">Size
-                                Guide</button></li>
-                        <li><button onclick="toggleCart()" class="hover:text-white transition">My Cart</button></li>
-                        <li><button onclick="handleAuthClick()" class="hover:text-white transition">My Account</button>
+                    <h3 class="font-bold text-sm uppercase tracking-widest mb-6 text-gray-500">Visit Us / Contact</h3>
+                    <ul class="space-y-4 text-sm text-gray-300">
+                        <li class="flex items-start gap-3">
+                            <i class="bi bi-geo-alt mt-1 text-gray-500"></i>
+                            <span>Accra, Ghana</span>
+                        </li>
+                        <li class="flex items-center gap-3">
+                            <i class="bi bi-clock text-gray-500"></i>
+                            <span>Mon - Sat: 9:00 AM - 6:00 PM</span>
+                        </li>
+                        <li class="flex items-center gap-3">
+                            <i class="bi bi-telephone text-gray-500"></i>
+                            <span>+233 55 555 5555</span>
+                        </li>
+                        <li class="flex items-center gap-3">
+                            <i class="bi bi-envelope text-gray-500"></i>
+                            <span>support@faym.com</span>
                         </li>
                     </ul>
                 </div>
+
+                <!-- Column 3: The Newsletter -->
                 <div>
-                    <h3 class="font-bold text-sm uppercase tracking-wider mb-4 text-brand-accent">Connect</h3>
-                    <div class="flex gap-4 mb-4">
-                        <a href="#"
-                            class="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center hover:bg-brand-accent hover:text-brand-dark transition"><i
-                                class="bi bi-instagram"></i></a>
-                        <a href="#"
-                            class="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center hover:bg-brand-accent hover:text-brand-dark transition"><i
-                                class="bi bi-twitter-x"></i></a>
-                        <a href="https://wa.me/233535284878"
-                            class="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center hover:bg-brand-accent hover:text-brand-dark transition"><i
-                                class="bi bi-whatsapp"></i></a>
+                    <h3 class="font-bold text-sm uppercase tracking-widest mb-6 text-gray-500">Stay Connected</h3>
+                    <p class="text-gray-400 text-sm mb-4">Subscribe to receive updates, access to exclusive deals, and
+                        more.</p>
+                    <form onsubmit="handleSubscribe(event)" class="relative max-w-xs">
+                        <input type="email" required placeholder="Enter your email"
+                            class="w-full bg-gray-900 border border-gray-800 text-white px-4 py-3 rounded focus:outline-none focus:border-white transition text-sm">
+                        <button type="submit"
+                            class="absolute right-2 top-2 bg-white text-black px-4 py-1.5 rounded text-xs font-bold hover:bg-gray-200 transition">
+                            JOIN
+                        </button>
+                    </form>
+                    <div class="flex gap-4 mt-6">
+                        <a href="https://www.instagram.com/faithag_youthministry/" target="_blank"
+                            class="text-gray-500 hover:text-white transition"><i
+                                class="bi bi-instagram text-lg"></i></a>
+                        <a href="https://www.youtube.com/channel/UCIUdgh-zV9ND6xt4K-16wRA/about" target="_blank"
+                            class="text-gray-500 hover:text-white transition"><i class="bi bi-youtube text-lg"></i></a>
+                        <a href="https://www.tiktok.com/@faithag_youthministry" target="_blank"
+                            class="text-gray-500 hover:text-white transition"><i class="bi bi-tiktok text-lg"></i></a>
                     </div>
-                    <p class="text-xs text-gray-500">Accra, Ghana</p>
                 </div>
             </div>
+
+            <!-- Pro Bottom Bar -->
             <div
-                class="border-t border-gray-800 pt-8 flex flex-col md:flex-row justify-between items-center text-xs text-gray-500">
+                class="border-t border-gray-900 pt-8 flex flex-col md:flex-row justify-between items-center text-xs text-gray-600 gap-4">
                 <p>&copy; 2025 FAYM Store. All rights reserved.</p>
-                <div class="flex gap-4 mt-4 md:mt-0">
-                    <span>Terms</span>
-                    <span>Privacy</span>
-                    <span>Returns</span>
+
+                <!-- Payment Icons (Visual) -->
+                <div class="flex items-center gap-3 opacity-60 grayscale hover:grayscale-0 transition duration-500">
+                    <span class="border border-gray-800 px-2 py-1 rounded bg-gray-900"><i
+                            class="bi bi-credit-card-2-front text-white"></i> VISA</span>
+                    <span class="border border-gray-800 px-2 py-1 rounded bg-gray-900"><i
+                            class="bi bi-credit-card text-white"></i> MasterCard</span>
+                    <span
+                        class="border border-gray-800 px-2 py-1 rounded bg-gray-900 font-bold text-yellow-500 tracking-tighter">MoMo</span>
                 </div>
             </div>
         </div>
