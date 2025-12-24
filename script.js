@@ -1,4 +1,5 @@
 const API_URL = "https://script.google.com/macros/s/AKfycbzxG09tYFfcV7ben74vi6TjQXnqZ6DB3hLnW7PVMRoW24BaQpnqvyH6GZ48A8GO38kc/exec";
+console.log("✅ FAYM STORE SCRIPT LOADED: CORS FIX ACTIVE");
 
 // --- STATE MANAGEMENT ---
 const AppState = {
