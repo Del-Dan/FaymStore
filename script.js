@@ -463,6 +463,37 @@ async function handleResetPass(e) {
     btn.innerText = txt; btn.disabled = false;
 }
 
+
+
+// Resend OTP Logic
+async function handleResendOtp() {
+    const btn = document.getElementById('resendBtn');
+    if (!pendingResetEmail) {
+        showToast("Error: No email found. Please start over.", "error");
+        switchAuth('forgot');
+        return;
+    }
+
+    const originalText = btn.innerText;
+    btn.innerText = "Sending..."; btn.disabled = true;
+
+    try {
+        const res = await fetch(API_URL, {
+            method: 'POST',
+            body: JSON.stringify({ action: 'sendForgotOtp', payload: { email: pendingResetEmail } })
+        }).then(r => r.json());
+
+        if (res.success) {
+            showToast("New Code Sent! Check your email.", "success");
+            // Optional: Disable button for 30s to prevent spam
+        } else {
+            showToast(res.message, "error");
+        }
+    } catch (e) { showToast("Network Error", "error"); }
+
+    btn.innerText = originalText; btn.disabled = false;
+}
+
 // --- GRID & DROPS ---
 function renderProductGrid(products = AppState.products) {
     const grid = document.getElementById('productGrid');
