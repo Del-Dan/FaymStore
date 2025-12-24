@@ -1582,3 +1582,21 @@ window.addEventListener('scroll', () => {
     }
 });
 // Last Updated: 2025-12-24 (Force Deploy - Retry)
+
+// --- CONNECTION DEBUG ---
+window.addEventListener('load', async () => {
+    console.log('?? TESTING FINAL CONNECTION...');
+    try {
+        const res = await fetch(API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/plain' },
+            body: JSON.stringify({ action: 'ping' })
+        });
+        const data = await res.json();
+        console.log('? CONNECTION SUCCESS! Response:', data);
+        showToast('Server Connection: OK', 'success');
+    } catch (e) {
+        console.error('? CONNECTION FAILED:', e);
+        showToast('Server Connection: FAILED', 'error');
+    }
+});
