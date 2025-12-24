@@ -1509,4 +1509,25 @@ function handleSubscribe(e) {
         input.value = "";
     }
 }
+
+// --- FLOATING BUTTON LOGIC ---
+window.addEventListener('scroll', () => {
+    const btn = document.getElementById('whatsappFloat');
+    const footer = document.getElementById('mainFooter');
+    if (!btn || !footer) return;
+
+    const footerRect = footer.getBoundingClientRect();
+    const viewportHeight = window.innerHeight;
+
+    // If footer is visible in viewport
+    if (footerRect.top < viewportHeight) {
+        // Calculate how much the footer is covering
+        const overlap = viewportHeight - footerRect.top;
+        // Push button up by overlap amount + original bottom spacing (24px/6rem approx)
+        btn.style.bottom = `${overlap + 24}px`;
+    } else {
+        // Reset to default css class 'bottom-6' (which is 1.5rem = 24px)
+        btn.style.bottom = '1.5rem';
+    }
+});
 // Last Updated: 2025-12-24 (Force Deploy)
