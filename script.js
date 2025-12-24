@@ -293,11 +293,13 @@ async function handleUpdateProfile(e) {
 }
 
 // --- AUTH LOGIC ---
+let pendingResetEmail = "";
+
 function openAuth() { document.getElementById('authModal').classList.remove('hidden'); document.getElementById('authModal').classList.add('flex'); }
 function closeAuth() { document.getElementById('authModal').classList.add('hidden'); document.getElementById('authModal').classList.remove('flex'); }
 
 function switchAuth(mode) {
-    ['loginForm', 'registerForm', 'forgotForm'].forEach(id => document.getElementById(id).classList.add('hidden'));
+    ['loginForm', 'registerForm', 'forgotForm', 'resetForm'].forEach(id => document.getElementById(id).classList.add('hidden'));
     document.getElementById(`${mode}Form`).classList.remove('hidden');
 }
 
@@ -408,19 +410,56 @@ async function handleForgotPass(e) {
     btn.innerText = "Sending..."; btn.disabled = true;
 
     try {
+        const emailVal = f.email.value.trim();
         const res = await fetch(API_URL, {
             method: 'POST',
-            body: JSON.stringify({ action: 'sendForgotOtp', payload: { email: f.email.value.trim() } })
+            body: JSON.stringify({ action: 'sendForgotOtp', payload: { email: emailVal } })
         }).then(r => r.json());
 
         if (res.success) {
-            alert("OTP sent to your email (Valid for 10 mins). Check Spam/Inbox.");
-            // Ideally switch to an OTP verification screen, but for now redirecting to login as per flow
-            switchAuth('login');
+            showToast("OTP sent to your email. Check Spam/Inbox.", "success");
+            pendingResetEmail = emailVal; // Store for next step
+            switchAuth('reset');
         } else {
             showError(f.email, res.message || "User not found");
         }
     } catch (e) { showError(f.email, "Network Error"); }
+    btn.innerText = txt; btn.disabled = false;
+}
+
+async function handleResetPass(e) {
+    e.preventDefault();
+    const f = e.target;
+    const otp = f.otp.value.trim();
+    const newPass = f.newPassword.value;
+
+    clearError(f.otp);
+    clearError(f.newPassword);
+
+    if (!otp) { showError(f.otp, "Enter OTP Code"); return; }
+    if (!newPass || newPass.length < 6) { showError(f.newPassword, "Min 6 chars required"); return; }
+
+    const btn = f.querySelector('button');
+    const txt = btn.innerText;
+    btn.innerText = "Verifying..."; btn.disabled = true;
+
+    try {
+        const res = await fetch(API_URL, {
+            method: 'POST',
+            body: JSON.stringify({
+                action: 'verifyOtpAndReset',
+                payload: { email: pendingResetEmail, otp: otp, newPassword: newPass }
+            })
+        }).then(r => r.json());
+
+        if (res.success) {
+            showToast("Password Reset Successful! Please Login.", "success");
+            switchAuth('login');
+        } else {
+            if (res.message.toLowerCase().includes('otp')) showError(f.otp, res.message);
+            else alert(res.message);
+        }
+    } catch (e) { alert("Connection Error"); }
     btn.innerText = txt; btn.disabled = false;
 }
 

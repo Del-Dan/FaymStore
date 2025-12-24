@@ -394,6 +394,29 @@
                             class="text-gray-500 hover:text-black">Back to Login</button></p>
                 </div>
 
+                <div id="resetForm" class="hidden">
+                    <h2 class="text-2xl font-serif mb-6 text-center">Verify & Reset</h2>
+                    <p class="text-sm text-gray-500 text-center mb-4">Enter the code sent to your email.</p>
+                    <form onsubmit="handleResetPass(event)" class="space-y-4" novalidate>
+                        <div>
+                            <input type="text" name="otp" placeholder="Enter OTP Code"
+                                class="w-full p-3 border rounded focus:outline-none focus:border-black transition text-center tracking-widest font-bold"
+                                oninput="clearError(this)">
+                            <p class="text-red-500 text-xs mt-1 hidden error-msg"></p>
+                        </div>
+                        <div>
+                            <input type="password" name="newPassword" placeholder="New Password"
+                                class="w-full p-3 border rounded focus:outline-none focus:border-black transition"
+                                oninput="clearError(this)">
+                            <p class="text-red-500 text-xs mt-1 hidden error-msg"></p>
+                        </div>
+                        <button type="submit" class="w-full bg-black text-white py-3 rounded font-bold">Reset
+                            Password</button>
+                    </form>
+                    <p class="mt-4 text-center text-sm text-gray-500"><button onclick="switchAuth('login')"
+                            class="text-gray-500 hover:text-black">Cancel</button></p>
+                </div>
+
                 <div id="registerForm" class="hidden">
                     <h2 class="text-2xl font-serif mb-6 text-center">Create Account</h2>
                     <form onsubmit="handleRegister(event)" class="space-y-4" novalidate>
